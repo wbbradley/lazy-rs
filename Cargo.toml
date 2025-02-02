@@ -1,0 +1,7 @@
+[package]
+name = "lifted-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rc-slice2 = "0.4.1"
