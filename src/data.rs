@@ -4,12 +4,12 @@ use std::{collections::HashMap, fmt::Debug, rc::Rc};
 // Core types
 #[derive(Debug, Clone)]
 pub struct Id {
-    name: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct Ctor {
-    name: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -22,45 +22,45 @@ pub enum Predicate {
 
 #[derive(Debug, Clone)]
 pub struct Decl {
-    name: Id,
-    pattern: Vec<Predicate>,
-    body: Expr,
+    pub name: Id,
+    pub pattern: Vec<Predicate>,
+    pub body: Expr,
 }
 
 #[derive(Debug, Clone)]
 pub struct PatternExpr {
-    predicate: Predicate,
-    expr: Expr,
+    pub predicate: Predicate,
+    pub expr: Expr,
 }
 
 #[derive(Debug, Clone)]
 pub struct Match {
-    subject: Box<Expr>,
-    pattern_exprs: Vec<PatternExpr>,
+    pub subject: Box<Expr>,
+    pub pattern_exprs: Vec<PatternExpr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TupleCtor {
-    dims: Vec<Expr>,
+    pub dims: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Let {
-    name: Id,
-    value: Box<Expr>,
-    body: Box<Expr>,
+    pub name: Id,
+    pub value: Box<Expr>,
+    pub body: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Lambda {
-    param_names: Vec<Id>,
-    body: Box<Expr>,
+    pub param_names: Vec<Id>,
+    pub body: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Callsite {
-    function: Box<Expr>,
-    arguments: Vec<Expr>,
+    pub function: Box<Expr>,
+    pub arguments: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,13 +70,14 @@ pub enum Expr {
     Id(Id),
     Match(Match),
     Callsite(Callsite),
+    Ctor(Ctor),
     TupleCtor(TupleCtor),
     Let(Let),
 }
 
 #[derive(Debug, Clone)]
 pub enum LiteralValue {
-    Int(i32),
+    Int(i64),
     Str(String),
     None,
 }
@@ -113,27 +114,27 @@ impl Debug for Value {
 
 #[derive(Debug, Clone)]
 pub struct Thunk {
-    env: Rc<Env>,
-    expr: Box<Value>,
-    memoized: Option<Box<Value>>,
+    pub env: Rc<Env>,
+    pub expr: Box<Value>,
+    pub memoized: Option<Box<Value>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CtorInstance {
-    ctor: Ctor,
-    dims: Vec<Value>,
+    pub ctor: Ctor,
+    pub dims: Vec<Value>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TupleCtorInstance {
-    dims: Vec<Value>,
+    pub dims: Vec<Value>,
 }
 
 // Environment
 #[derive(Debug, Clone)]
 pub struct Env {
-    globals: HashMap<String, Value>,
-    locals: HashMap<String, Value>,
+    pub globals: HashMap<String, Value>,
+    pub locals: HashMap<String, Value>,
 }
 
 impl Env {

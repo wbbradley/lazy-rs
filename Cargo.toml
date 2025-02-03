@@ -1,7 +1,10 @@
 [package]
-name = "lifted-rs"
+name = "lazy-rs"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+log = "0.4.25"
+nom = "8.0.0"
+nom-language = "0.1.0"
 rc-slice2 = "0.4.1"
