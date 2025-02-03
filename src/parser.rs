@@ -11,7 +11,7 @@ use nom::{
     Parser,
 };
 
-use crate::{data as term, error::Error};
+use crate::{error::Error, value::Value};
 
 const KEYWORDS: &[&str] = &["->", ":", "else", "if", "let", "match", "do", "then"];
 
@@ -35,12 +35,10 @@ fn identifier(input: &str) -> IResult<&str, &str> {
     .parse(input)
 }
 
-fn id_parser(input: &str) -> IResult<&str, term::Id> {
+fn id_parser(input: &str) -> IResult<&str, Value> {
     map_res(ws(identifier), |s: &str| {
         if !s.chars().next().unwrap().is_uppercase() && !KEYWORDS.contains(&s) {
-            Ok(term::Id {
-                name: s.to_string(),
-            })
+            Ok(Value::id(s))
         } else {
             Err(Error::from(format!("invalid identifier: {}", s)))
         }
@@ -63,14 +61,14 @@ fn ctor_parser(input: &str) -> IResult<&str, term::Ctor> {
 
 fn number_parser(input: &str) -> IResult<&str, term::Expr> {
     map(ws(digit1), |s: &str| {
-        term::Expr::Literal(term::LiteralValue::Int(s.parse().unwrap()))
+        term::Expr::Literal(term::Literal::Int(s.parse().unwrap()))
     })
     .parse(input)
 }
 
 fn string_literal_parser(input: &str) -> IResult<&str, term::Expr> {
     map(string_literal, |s| {
-        term::Expr::Literal(term::LiteralValue::Str(s))
+        term::Expr::Literal(term::Literal::Str(s))
     })
     .parse(input)
 }
@@ -296,7 +294,7 @@ fn decl_parser(input: &str) -> IResult<&str, term::Decl> {
     .parse(input)
 }
 
-fn program_parser(input: &str) -> IResult<&str, Vec<term::Decl>> {
+pub(crate) fn program_parser(input: &str) -> IResult<&str, Vec<term::Decl>> {
     terminated(many0(decl_parser), multispace0).parse(input)
 }
 

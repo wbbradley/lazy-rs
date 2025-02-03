@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use nom_language::error::VerboseError;
 
-pub type Result<'a, T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Error(String, &'static std::panic::Location<'static>);

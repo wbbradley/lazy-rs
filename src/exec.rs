@@ -1,9 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    data::{Expr, Value},
-    runtime::Env,
-};
+use crate::{env::Env, value::Value};
 type Result<T> = std::result::Result<T, RuntimeError>;
 
 #[derive(Debug)]
@@ -16,17 +13,11 @@ pub enum RuntimeError {
 }
 
 #[derive(Clone)]
-pub struct Continuation {
-    env: Env,
-    next: Option<Rc<RefCell<Continuation>>>,
-}
-
-#[derive(Clone)]
 pub enum Step {
-    Done(Rc<Value>),
+    Done(Value),
     Walk {
         env: Env,
-        expr: Box<Expr>,
+        expr: Value,
         next: Option<Rc<RefCell<Continuation>>>,
     },
 }
@@ -35,26 +26,27 @@ impl Step {
     fn advance(self) -> Result<Step> {
         match self {
             Step::Done(value) => Ok(Step::Done(value)),
-            Step::Walk { env, expr, next } => match *expr {
-                Expr::Literal(lit) => Ok(Step::Done(Rc::new(Value::Literal(lit)))),
-                Expr::Id(ref id) => {
+            Step::Walk { env, expr, next } => match expr {
+                Value::Int(x) => Ok(Step::Done(Value::Int(x))),
+                Value::Str(x) => Ok(Step::Done(Value::Str(x))),
+                Value::Id(ref id) => {
                     if let Some(value) = env.get_symbol(&id.name) {
                         Ok(Step::Walk {
                             env,
-                            expr: Box::new(value.into()),
+                            expr: value,
                             next,
                         })
                     } else {
                         Err(RuntimeError::UnresolvedSymbol(id.name.clone()))
                     }
                 }
-                Expr::Let(let_expr) => {
+                Value::Let(let_expr) => {
                     let mut new_env = env.clone();
-                    let thunk = Rc::new(Value::Thunk(Rc::new(RefCell::new(Thunk {
+                    let thunk = Rc::new(Value::Thunk(Thunk {
                         env: env.clone(),
                         expr: let_expr.value,
                         memoized: None,
-                    }))));
+                    }));
                     new_env.add_symbol(let_expr.name.name.clone(), thunk);
                     Ok(Step::Walk {
                         env: new_env,
@@ -62,7 +54,7 @@ impl Step {
                         next,
                     })
                 }
-                Expr::Match(match_expr) => Ok(Step::Walk {
+                Value::Match(match_expr) => Ok(Step::Walk {
                     env: env.clone(),
                     expr: match_expr.subject,
                     next: Some(Rc::new(RefCell::new(Continuation::Match {
@@ -71,7 +63,7 @@ impl Step {
                         next,
                     }))),
                 }),
-                Expr::Callsite(callsite) => Ok(Step::Walk {
+                Value::Callsite(callsite) => Ok(Step::Walk {
                     env: env.clone(),
                     expr: callsite.function,
                     next: Some(Rc::new(RefCell::new(Continuation::Callsite {
@@ -80,7 +72,7 @@ impl Step {
                         next,
                     }))),
                 }),
-                Expr::TupleCtor(tuple) => {
+                Value::TupleCtor(tuple) => {
                     let dims = tuple
                         .dims
                         .into_iter()
@@ -92,12 +84,12 @@ impl Step {
                             }))))
                         })
                         .collect();
-                    Ok(Step::Done(Rc::new(Value::TupleCtorInstance(Rc::new(
+                    Ok(Step::Done(Rc::new(Value::Tuple(Rc::new(
                         TupleCtorInstance { dims },
                     )))))
                 }
-                Expr::Lambda(lambda) => Ok(Step::Done(Rc::new(Value::Lambda(Rc::new(lambda))))),
-                Expr::Ctor(ctor) => Ok(Step::Done(Rc::new(Value::Ctor(Rc::new(ctor))))),
+                Value::Lambda(lambda) => Ok(Step::Done(Rc::new(Value::Lambda(Rc::new(lambda))))),
+                Value::Ctor(ctor) => Ok(Step::Done(Rc::new(Value::Ctor(Rc::new(ctor))))),
             },
         }
     }
@@ -147,7 +139,7 @@ impl Continuation {
                 env,
                 arguments,
                 next,
-            } => match &*alue {
+            } => match &*value {
                 Value::Lambda(lambda) => {
                     if arguments.len() != lambda.param_names.len() {
                         return Err(RuntimeError::InvalidCallsite(
@@ -212,7 +204,7 @@ impl Continuation {
     }
 }
 
-pub fn eval(env: &Env, expr: &Expr) -> Result<Rc<Value>> {
+pub fn eval(env: &Env, expr: &Value) -> Result<Rc<Value>> {
     let mut step = Step::Walk {
         env: env.clone(),
         expr: Box::new(expr.clone()),
