@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use error::Result;
 
 mod env;
@@ -10,7 +12,7 @@ mod value;
 // Example clap arguments.
 use crate::{
     env::Env,
-    exec::{is_weak_head_normal_form, Continuation, ContinuationChoice},
+    exec::{is_weak_head_normal_form, Continuation, ContinuationChoice, RuntimeError},
     value::Value,
 };
 use clap::Parser;
@@ -40,57 +42,64 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn walk_tree(env: Env, expr: Value) -> std::result::Result<Value, crate::exec::RuntimeError> {
+fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeError> {
     // Return a value in WHNF.
+    // State is maintained in the expr register and the continuation list.
+    let expr = RefCell::new(expr);
     let message = format!("Walk({expr:?})");
-    let mut continuation: Continuation = Continuation::walk(env, expr, message);
+    let mut continuation: Continuation = Continuation::walk(env, message);
     loop {
         tracing::debug!("walk_tree loop on {continuation:?}");
         continuation = match continuation.choice {
-            ContinuationChoice::Done { value } => {
+            ContinuationChoice::Done => {
                 if let Some(next) = continuation.next {
-                    (*next).prepare(value)?
+                    // Push this value on to the next continuation.
+
+                    (*next).prepare(expr)?
                 } else {
-                    break Ok(value);
+                    break Ok(expr);
                 }
             }
-            ContinuationChoice::Walk { env: _, expr } => {
-                if is_weak_head_normal_form(&expr) {
+            ContinuationChoice::Walk { env } if is_weak_head_normal_form(&expr) => Continuation {
+                message: "from a Walk".to_string(),
+                choice: ContinuationChoice::Done,
+                next: continuation.next,
+            },
+            ContinuationChoice::Walk { env } => match expr {
+                Value::Int(_) => todo!(),
+                Value::Str(_) => todo!(),
+                Value::Null => todo!(),
+                Value::Lambda {
+                    param_names: _,
+                    body: _,
+                } => todo!(),
+                Value::Id(_id) => todo!(),
+                Value::Match {
+                    subject: _,
+                    pattern_exprs: _,
+                } => todo!(),
+                Value::Callsite {
+                    function,
+                    arguments,
+                } => {
+                    // Evaluation the function, then pass that to the arguments.
+                    expr = *function;
                     Continuation {
-                        message: "from a Walk".to_string(),
-                        choice: ContinuationChoice::Done { value: expr },
+                        message: "callsite walk".to_string(),
+                        choice: ContinuationChoice::Callsite { env, arguments },
                         next: continuation.next,
                     }
-                } else {
-                    match expr {
-                        Value::Int(_) => todo!(),
-                        Value::Str(_) => todo!(),
-                        Value::Null => todo!(),
-                        Value::Lambda {
-                            param_names: _,
-                            body: _,
-                        } => todo!(),
-                        Value::Id(_id) => todo!(),
-                        Value::Match {
-                            subject: _,
-                            pattern_exprs: _,
-                        } => todo!(),
-                        Value::Callsite {
-                            function: _,
-                            arguments: _,
-                        } => todo!(),
-                        Value::Tuple { dims: _ } => todo!(),
-                        Value::Thunk { env: _, expr: _ } => todo!(),
-                        Value::Builtin(_f) => todo!(),
-                        Value::Let {
-                            name: _,
-                            value: _,
-                            body: _,
-                        } => todo!(),
-                        Value::Ctor { name: _, dims: _ } => todo!(),
-                    }
                 }
-            }
+                Value::Tuple { dims: _ } => todo!(),
+                Value::Thunk { env: _, expr: _ } => todo!(),
+                Value::Builtin(_f) => todo!(),
+                Value::Let {
+                    name: _,
+                    value: _,
+                    body: _,
+                } => todo!(),
+                Value::Ctor { name: _, dims: _ } => todo!(),
+            },
             ContinuationChoice::Match { .. } => todo!(),
             ContinuationChoice::Callsite { .. } => todo!(),
             ContinuationChoice::Thunk { .. } => todo!(),

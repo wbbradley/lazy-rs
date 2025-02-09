@@ -115,21 +115,16 @@ pub struct Continuation {
 
 #[derive(Debug)]
 pub enum ContinuationChoice {
-    Done {
-        value: Value,
-    },
+    Done,
     Walk {
         env: Env,
-        expr: Value,
     },
     Match {
         env: Env,
-        subject: Value,
         pattern_exprs: Vec<PatternExpr>,
     },
     Callsite {
         env: Env,
-        function: Value,
         arguments: Vec<Value>,
     },
     Thunk {
@@ -140,31 +135,35 @@ pub enum ContinuationChoice {
 }
 
 impl Continuation {
-    pub fn walk(env: Env, expr: Value, message: String) -> Self {
+    pub fn walk(env: Env, message: String) -> Self {
         Continuation {
             message,
-            choice: ContinuationChoice::Walk { env, expr },
+            choice: ContinuationChoice::Walk { env },
             next: None,
         }
     }
     pub fn prepare(self, value: Value) -> Result<Self> {
         match self.choice {
-            ContinuationChoice::Done { value } => {
+            ContinuationChoice::Done => {
                 panic!("why are we preparing when we're Done? {value:#?}")
             }
-            ContinuationChoice::Walk { env: _, expr } => {
-                panic!("shouldn't have to prepare a Walk {expr:#?}")
+            ContinuationChoice::Walk { env: _ } => {
+                panic!("shouldn't have to prepare a Walk {value:#?}")
             }
             ContinuationChoice::Match {
                 env: _,
-                subject: _,
                 pattern_exprs: _,
-            } => todo!(),
+            } => {
+                // subject = value
+                todo!();
+            }
             ContinuationChoice::Callsite {
                 env: _,
-                function: _,
                 arguments: _,
-            } => todo!(),
+            } => {
+                // function = value;
+                todo!();
+            }
             ContinuationChoice::Thunk { env: _, expr: _ } => todo!(),
         }
     }
