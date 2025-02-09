@@ -178,7 +178,26 @@ impl Value {
     }*/
 }
 impl Debug for Value {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Int(_) => todo!(),
+            Value::Str(_) => todo!(),
+            Value::Null => todo!(),
+            Value::Lambda { param_names, body } => todo!(),
+            Value::Id(id) => f.write_str(id.name()),
+            Value::Match {
+                subject,
+                pattern_exprs,
+            } => todo!(),
+            Value::Callsite {
+                function,
+                arguments,
+            } => write!(f, "({:?} {:?})", function, arguments),
+            Value::Tuple { dims } => todo!(),
+            Value::Thunk { env, expr } => todo!(),
+            Value::Builtin(rc) => todo!(),
+            Value::Let { name, value, body } => todo!(),
+            Value::Ctor { name, dims } => todo!(),
+        }
     }
 }

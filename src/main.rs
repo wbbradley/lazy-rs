@@ -45,6 +45,7 @@ fn walk_tree(env: Env, expr: Value) -> std::result::Result<Value, crate::exec::R
     let message = format!("Walk({expr:?})");
     let mut continuation: Continuation = Continuation::walk(env, expr, message);
     loop {
+        log::debug!("walk_tree loop on {continuation:?}");
         continuation = match continuation.choice {
             ContinuationChoice::Done { value } => {
                 if let Some(next) = continuation.next {
