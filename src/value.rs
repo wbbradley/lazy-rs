@@ -180,24 +180,33 @@ impl Value {
 impl Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Int(_) => todo!(),
-            Value::Str(_) => todo!(),
+            Value::Int(x) => write!(f, "{x}"),
+            Value::Str(x) => {
+                f.write_str("\"")?;
+                for c in x.chars() {
+                    if c.is_ascii_control() {
+                        write!(f, "\\x{:02x}", c as u8)?;
+                    } else if c == '"' {
+                        f.write_str("\\\"")?;
+                    } else {
+                        write!(f, "{c}")?;
+                    }
+                }
+                f.write_str("\"")
+            }
             Value::Null => todo!(),
-            Value::Lambda { param_names, body } => todo!(),
+            Value::Lambda { .. } => todo!(),
             Value::Id(id) => f.write_str(id.name()),
-            Value::Match {
-                subject,
-                pattern_exprs,
-            } => todo!(),
+            Value::Match { .. } => todo!(),
             Value::Callsite {
                 function,
                 arguments,
             } => write!(f, "({:?} {:?})", function, arguments),
-            Value::Tuple { dims } => todo!(),
-            Value::Thunk { env, expr } => todo!(),
-            Value::Builtin(rc) => todo!(),
-            Value::Let { name, value, body } => todo!(),
-            Value::Ctor { name, dims } => todo!(),
+            Value::Tuple { .. } => todo!(),
+            Value::Thunk { .. } => todo!(),
+            Value::Builtin(_) => todo!(),
+            Value::Let { .. } => todo!(),
+            Value::Ctor { .. } => todo!(),
         }
     }
 }

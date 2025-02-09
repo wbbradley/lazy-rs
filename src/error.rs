@@ -12,15 +12,6 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl From<log::SetLoggerError> for Error {
-    #[track_caller]
-    fn from(e: log::SetLoggerError) -> Self {
-        Self(
-            format!("set logger error: {e}"),
-            std::panic::Location::caller(),
-        )
-    }
-}
 impl From<crate::value::IdError> for Error {
     #[track_caller]
     fn from(e: crate::value::IdError) -> Self {

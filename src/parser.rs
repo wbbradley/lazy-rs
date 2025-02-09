@@ -81,16 +81,16 @@ fn ctor_predicate_parser(input: &str) -> IResult<&str, Predicate> {
 }
 
 fn predicate_parser(input: &str) -> IResult<&str, Predicate> {
-    alt((
+    ws(alt((
         // Parse negative number predicates.
-        map_res(ws((tag("-"), ws(digit1))), |s: (&str, &str)| {
+        map_res((tag("-"), ws(digit1)), |s: (&str, &str)| {
             s.1.parse().map(|x: i64| Predicate::Int(-x))
         }),
         // Parse positive number predicates.
-        map_res(ws(digit1), |s: &str| s.parse().map(Predicate::Int)),
+        map_res(digit1, |s: &str| s.parse().map(Predicate::Int)),
         ctor_predicate_parser,
         map(id_parser, Predicate::Id),
-    ))
+    )))
     .parse(input)
 }
 
@@ -249,17 +249,15 @@ fn callsite_term_parser(input: &str) -> IResult<&str, Value> {
 fn decl_parser(input: &str) -> IResult<&str, Decl> {
     map(
         (
-            many1(predicate_parser),
+            id_parser,
+            many0(predicate_parser),
             ws(char('=')),
             expr_parser,
             ws(char(';')),
         ),
-        |(mut preds, _, body, _)| Decl {
-            name: match preds.remove(0) {
-                Predicate::Id(id) => id,
-                _ => panic!("Declaration must start with an identifier"),
-            },
-            pattern: preds,
+        |(name, pattern, _, body, _)| Decl {
+            name,
+            pattern,
             body,
         },
     )

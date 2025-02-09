@@ -22,13 +22,13 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
     let args = Args::parse();
     let input = std::fs::read_to_string(args.file).unwrap();
     let decls = parser::program_parser(&input)?;
-    log::info!("Parsed: {:#?}", decls);
     let mut env = Env::with_builtins();
     for d in decls.1 {
-        log::info!("Decl: {:#?}", d);
+        tracing::info!("{:#?}", d);
         env.add_symbol_mut(d.name, d.body);
     }
     let entrypoint = Value::Callsite {
@@ -36,7 +36,7 @@ fn main() -> Result<()> {
         arguments: vec![],
     };
     let result = walk_tree(Env::with_builtins(), entrypoint);
-    log::info!("{:#?}", result);
+    tracing::info!("{:#?}", result);
     Ok(())
 }
 
@@ -45,7 +45,7 @@ fn walk_tree(env: Env, expr: Value) -> std::result::Result<Value, crate::exec::R
     let message = format!("Walk({expr:?})");
     let mut continuation: Continuation = Continuation::walk(env, expr, message);
     loop {
-        log::debug!("walk_tree loop on {continuation:?}");
+        tracing::debug!("walk_tree loop on {continuation:?}");
         continuation = match continuation.choice {
             ContinuationChoice::Done { value } => {
                 if let Some(next) = continuation.next {
