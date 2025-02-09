@@ -1,24 +1,24 @@
 #![allow(dead_code)]
 use nom_language::error::VerboseError;
 
-pub type Result<T> = std::result::Result<T, Error>;
+use crate::runtime::error::RuntimeError;
 
 #[derive(Debug)]
-pub struct Error(String, &'static std::panic::Location<'static>);
+pub struct PitaError(String, &'static std::panic::Location<'static>);
 
-impl std::fmt::Display for Error {
+impl std::fmt::Display for PitaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: cvr error: {}", self.1, self.0)
     }
 }
 
-impl From<crate::value::IdError> for Error {
+impl From<crate::value::IdError> for PitaError {
     #[track_caller]
     fn from(e: crate::value::IdError) -> Self {
         Self(format!("id error: {e}"), std::panic::Location::caller())
     }
 }
-impl From<crate::value::CtorIdError> for Error {
+impl From<crate::value::CtorIdError> for PitaError {
     #[track_caller]
     fn from(e: crate::value::CtorIdError) -> Self {
         Self(
@@ -27,13 +27,22 @@ impl From<crate::value::CtorIdError> for Error {
         )
     }
 }
-impl From<std::io::Error> for Error {
+impl From<RuntimeError> for PitaError {
+    #[track_caller]
+    fn from(e: RuntimeError) -> Self {
+        Self(
+            format!("runtime error: {e}"),
+            std::panic::Location::caller(),
+        )
+    }
+}
+impl From<std::io::Error> for PitaError {
     #[track_caller]
     fn from(e: std::io::Error) -> Self {
         Self(format!("io error: {e}"), std::panic::Location::caller())
     }
 }
-impl From<nom::Err<VerboseError<&str>>> for Error {
+impl From<nom::Err<VerboseError<&str>>> for PitaError {
     #[track_caller]
     fn from(e: nom::Err<VerboseError<&str>>) -> Self {
         Self(
@@ -42,13 +51,13 @@ impl From<nom::Err<VerboseError<&str>>> for Error {
         )
     }
 }
-impl From<nom::Err<nom::error::Error<&str>>> for Error {
+impl From<nom::Err<nom::error::Error<&str>>> for PitaError {
     #[track_caller]
     fn from(e: nom::Err<nom::error::Error<&str>>) -> Self {
         Self(format!("nom error: {}", e), std::panic::Location::caller())
     }
 }
-impl From<std::num::ParseIntError> for Error {
+impl From<std::num::ParseIntError> for PitaError {
     #[track_caller]
     fn from(e: std::num::ParseIntError) -> Self {
         Self(
@@ -57,13 +66,13 @@ impl From<std::num::ParseIntError> for Error {
         )
     }
 }
-impl From<String> for Error {
+impl From<String> for PitaError {
     #[track_caller]
     fn from(e: String) -> Self {
         Self(e, std::panic::Location::caller())
     }
 }
-impl From<&'static str> for Error {
+impl From<&'static str> for PitaError {
     #[track_caller]
     fn from(e: &'static str) -> Self {
         Self(e.to_string(), std::panic::Location::caller())

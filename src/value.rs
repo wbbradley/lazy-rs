@@ -128,7 +128,8 @@ impl CtorId {
     }
 }
 
-pub type Builtin = dyn Fn(Vec<Value>) -> std::result::Result<Value, crate::runtime::RuntimeError>;
+pub type Builtin =
+    dyn Fn(Vec<Value>) -> std::result::Result<Value, crate::runtime::error::RuntimeError>;
 
 // Runtime values
 #[derive(Clone)]

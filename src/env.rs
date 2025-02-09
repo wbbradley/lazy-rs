@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::runtime::RuntimeError;
+use crate::runtime::error::RuntimeError;
 use std::rc::Rc;
 
 use crate::value::{Id, Value};

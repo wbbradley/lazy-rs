@@ -1,16 +1,22 @@
-use error::Result;
+//! Pita is a programming language for writing lazy functional programs.
+use crate::error::PitaError;
+use test_each_file::test_each_file;
 
 mod env;
 mod error;
-mod exec;
 mod parser;
-mod runtime;
 mod value;
+
+mod runtime {
+    pub(crate) mod error;
+    pub(crate) mod exec;
+}
 
 // Example clap arguments.
 use crate::{
     env::Env,
-    exec::{is_weak_head_normal_form, Continuation, ContinuationChoice, RuntimeError},
+    runtime::error::RuntimeError,
+    runtime::exec::{is_weak_head_normal_form, Continuation, ContinuationChoice},
     value::Value,
 };
 use clap::Parser;
@@ -21,26 +27,36 @@ struct Args {
     file: String,
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), PitaError> {
     tracing_subscriber::fmt::init();
     let args = Args::parse();
-    let input = std::fs::read_to_string(args.file).unwrap();
-    let decls = parser::program_parser(&input)?;
+    let value = run_program(args)?;
+    tracing::info!("{:#?}", value);
+    Ok(())
+}
+
+fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError> {
+    let input = std::fs::read_to_string(filename).expect("reading file");
+    let filename = filename.as_ref().display().to_string();
+    let decls = parser::program_parser(filename, &input)?;
     let mut env = Env::with_builtins();
     for d in decls.1 {
         tracing::info!("{:#?}", d);
         env.add_symbol_mut(d.name, d.body);
     }
+    // Build an entrypoint which is a call to user `main`.
     let entrypoint = Value::Callsite {
         function: Box::new(Value::Id("main".into())),
         arguments: vec![],
     };
-    let result = walk_tree(Env::with_builtins(), entrypoint);
-    tracing::info!("{:#?}", result);
-    Ok(())
+    let result = walk_tree(env, entrypoint);
+    match result {
+        Ok(value) => Ok(value),
+        Err(e) => Err(PitaError::from(e)),
+    }
 }
 
-fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeError> {
+fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
     // Return a value in WHNF.
     // State is maintained in the expr register and the continuation list.
     let message = format!("Walk({expr:?})");
@@ -87,7 +103,7 @@ fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeErr
                     function,
                     arguments,
                 } => {
-                    // Evaluation the function, then pass that to the arguments.
+                    // Evaluate the callee, then apply the arguments to it.
                     expr = *function;
                     // Chain the continuation.
                     continuation.next = Some(Box::new(Continuation {
@@ -115,5 +131,17 @@ fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeErr
             ContinuationChoice::Callsite { .. } => todo!(),
             ContinuationChoice::Thunk { .. } => todo!(),
         }
+    }
+}
+
+test_each_file! { in "./tests" => test::test_pita_file }
+
+#[cfg(test)]
+mod test {
+    use crate::run_program;
+
+    pub(crate) fn test_pita_file(content: &str) {
+        run_program()
+        assert!(content.is_empty());
     }
 }

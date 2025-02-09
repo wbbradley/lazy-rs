@@ -12,9 +12,11 @@ use nom::{
 use std::str::FromStr;
 
 use crate::{
-    error::Result,
+    error::PitaError,
     value::{Decl, Id, PatternExpr, Predicate, Value},
 };
+
+type Span<'a> = LocatedSpan<&'a str>;
 
 pub const KEYWORDS: &[&str] = &[
     "<-", "->", ":", ";", "else", "if", "let", "match", "do", "then",
@@ -264,12 +266,15 @@ fn decl_parser(input: &str) -> IResult<&str, Decl> {
     .parse(input)
 }
 
-pub(crate) fn program_parser(input: &str) -> IResult<&str, Vec<Decl>> {
+pub(crate) fn program_parser(
+    filename: impl AsRef<std::path::Path>,
+    input: &str,
+) -> IResult<&str, Vec<Decl>> {
     terminated(many0(decl_parser), multispace0).parse(input)
 }
 
 // Helper function to convert do notation into nested expressions
-fn convert_do_notation(lines: &[DoLine]) -> Result<Value> {
+fn convert_do_notation(lines: &[DoLine]) -> Result<Value, PitaError> {
     Ok(match lines {
         [] => return Err("Empty do block".into()),
         [DoLine::Expr(expr)] => expr.clone(),
