@@ -22,10 +22,15 @@ pub enum Step {
     Continuation(Continuation),
 }
 
-fn is_weak_head_normal_form(value: &Value) -> bool {
+pub fn is_weak_head_normal_form(value: &Value) -> bool {
     matches!(
         value,
-        Value::Int(_) | Value::Str(_) | Value::Lambda { .. } | Value::Ctor { .. }
+        Value::Int(_)
+            | Value::Str(_)
+            | Value::Lambda { .. }
+            | Value::Ctor { .. }
+            | Value::Builtin { .. }
+            | Value::Tuple { .. }
     )
 }
 
@@ -103,10 +108,9 @@ pub fn advance() -> Result<Step> {
 
 #[derive(Debug)]
 pub struct Continuation {
-    pub env: Env,
     pub message: String,
     pub choice: ContinuationChoice,
-    pub next: Option<RefCell<Box<Continuation>>>,
+    pub next: Option<Box<Continuation>>,
 }
 
 #[derive(Debug)]
@@ -115,13 +119,16 @@ pub enum ContinuationChoice {
         value: Value,
     },
     Walk {
+        env: Env,
         expr: Value,
     },
     Match {
+        env: Env,
         subject: Value,
         pattern_exprs: Vec<PatternExpr>,
     },
     Callsite {
+        env: Env,
         function: Value,
         arguments: Vec<Value>,
     },
@@ -135,9 +142,8 @@ pub enum ContinuationChoice {
 impl Continuation {
     pub fn walk(env: Env, expr: Value, message: String) -> Self {
         Continuation {
-            env,
             message,
-            choice: ContinuationChoice::Walk { expr },
+            choice: ContinuationChoice::Walk { env, expr },
             next: None,
         }
     }
@@ -146,18 +152,20 @@ impl Continuation {
             ContinuationChoice::Done { value } => {
                 panic!("why are we preparing when we're Done? {value:#?}")
             }
-            ContinuationChoice::Walk { expr } => {
+            ContinuationChoice::Walk { env: _, expr } => {
                 panic!("shouldn't have to prepare a Walk {expr:#?}")
             }
             ContinuationChoice::Match {
-                subject,
-                pattern_exprs,
+                env: _,
+                subject: _,
+                pattern_exprs: _,
             } => todo!(),
             ContinuationChoice::Callsite {
-                function,
-                arguments,
+                env: _,
+                function: _,
+                arguments: _,
             } => todo!(),
-            ContinuationChoice::Thunk { env, expr } => todo!(),
+            ContinuationChoice::Thunk { env: _, expr: _ } => todo!(),
         }
     }
 }

@@ -10,7 +10,7 @@ mod value;
 // Example clap arguments.
 use crate::{
     env::Env,
-    exec::{Continuation, ContinuationChoice},
+    exec::{is_weak_head_normal_form, Continuation, ContinuationChoice},
     value::Value,
 };
 use clap::Parser;
@@ -49,28 +49,51 @@ fn walk_tree(env: Env, expr: Value) -> std::result::Result<Value, crate::exec::R
         continuation = match continuation.choice {
             ContinuationChoice::Done { value } => {
                 if let Some(next) = continuation.next {
-                    (*next.into_inner()).prepare(value)?
+                    (*next).prepare(value)?
                 } else {
                     break Ok(value);
                 }
             }
-            ContinuationChoice::Walk { .. } => todo!(),
+            ContinuationChoice::Walk { env: _, expr } => {
+                if is_weak_head_normal_form(&expr) {
+                    Continuation {
+                        message: "from a Walk".to_string(),
+                        choice: ContinuationChoice::Done { value: expr },
+                        next: continuation.next,
+                    }
+                } else {
+                    match expr {
+                        Value::Int(_) => todo!(),
+                        Value::Str(_) => todo!(),
+                        Value::Null => todo!(),
+                        Value::Lambda {
+                            param_names: _,
+                            body: _,
+                        } => todo!(),
+                        Value::Id(_id) => todo!(),
+                        Value::Match {
+                            subject: _,
+                            pattern_exprs: _,
+                        } => todo!(),
+                        Value::Callsite {
+                            function: _,
+                            arguments: _,
+                        } => todo!(),
+                        Value::Tuple { dims: _ } => todo!(),
+                        Value::Thunk { env: _, expr: _ } => todo!(),
+                        Value::Builtin(_f) => todo!(),
+                        Value::Let {
+                            name: _,
+                            value: _,
+                            body: _,
+                        } => todo!(),
+                        Value::Ctor { name: _, dims: _ } => todo!(),
+                    }
+                }
+            }
             ContinuationChoice::Match { .. } => todo!(),
             ContinuationChoice::Callsite { .. } => todo!(),
             ContinuationChoice::Thunk { .. } => todo!(),
         }
     }
 }
-/*
-    while True:
-        if isinstance(continuation, Done):
-            done = continuation
-            if not done.next:
-                break
-            continuation = done.next.prepare(done.value)
-
-        if isinstance(continuation, Walk):
-            continuation = continuation.advance()
-
-    return continuation.value
-*/
