@@ -9,7 +9,6 @@ use nom::{
     sequence::{delimited, pair, terminated},
     IResult, Parser,
 };
-use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::{
@@ -110,7 +109,7 @@ fn match_parser(input: &str) -> IResult<&str, Value> {
             )),
         ),
         |(_, (subject, _, patterns))| Value::Match {
-            subject: Rc::new(subject),
+            subject: Box::new(subject),
             pattern_exprs: patterns
                 .into_iter()
                 .map(|(predicate, _, expr)| PatternExpr { predicate, expr })
@@ -132,8 +131,8 @@ fn let_parser(input: &str) -> IResult<&str, Value> {
         ),
         |(_, name, _, value, _, body)| Value::Let {
             name,
-            value: Rc::new(value),
-            body: Rc::new(body),
+            value: Box::new(value),
+            body: Box::new(body),
         },
     )
     .parse(input)
@@ -172,7 +171,7 @@ fn lambda_parser(input: &str) -> IResult<&str, Value> {
         (many1(id_parser), ws(tag("->")), expr_parser),
         |(params, _, body)| Value::Lambda {
             param_names: params,
-            body: Rc::new(body),
+            body: Box::new(body),
         },
     )
     .parse(input)
@@ -203,7 +202,7 @@ fn if_then_else_parser(input: &str) -> IResult<&str, Value> {
             )),
         ),
         |(_, (condition, _, then_expr, _, else_expr))| Value::Match {
-            subject: Rc::new(condition),
+            subject: Box::new(condition),
             pattern_exprs: vec![
                 PatternExpr {
                     predicate: Predicate::Ctor("True".into(), vec![]),
@@ -225,7 +224,7 @@ fn callsite_parser(input: &str) -> IResult<&str, Value> {
             terms.remove(0)
         } else {
             Value::Callsite {
-                function: Rc::new(terms.remove(0)),
+                function: Box::new(terms.remove(0)),
                 arguments: terms,
             }
         }
@@ -278,16 +277,16 @@ fn convert_do_notation(lines: &[DoLine]) -> Result<Value> {
         [DoLine::Expr(expr)] => expr.clone(),
         [DoLine::Let(name, value), rest @ ..] => Value::Let {
             name: name.clone(),
-            value: Rc::new(value.clone()),
-            body: Rc::new(convert_do_notation(rest)?),
+            value: Box::new(value.clone()),
+            body: Box::new(convert_do_notation(rest)?),
         },
         [DoLine::Bind(name, expr), rest @ ..] => Value::Callsite {
-            function: Rc::new(Value::Id(">>=".into())),
+            function: Box::new(Value::Id(">>=".into())),
             arguments: vec![
                 expr.clone(),
                 Value::Lambda {
                     param_names: vec![name.clone()],
-                    body: Rc::new(convert_do_notation(rest)?),
+                    body: Box::new(convert_do_notation(rest)?),
                 },
             ],
         },

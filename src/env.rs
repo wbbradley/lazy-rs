@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::runtime::RuntimeError;
 use std::rc::Rc;
 
@@ -33,22 +34,27 @@ impl Env {
         self.bindings.contains_key(symbol)
     }
 
+    #[must_use]
     pub fn get_symbol(&self, symbol: &Id) -> Option<&Value> {
         self.bindings.get(symbol.name())
     }
 
-    pub fn add_global_symbol(&mut self, symbol: &Id, value: Value) {
+    pub fn add_symbol_mut(&mut self, symbol: Id, value: Value) {
         self.bindings.insert_mut(symbol.name().to_string(), value);
     }
 
-    pub fn add_symbol(&mut self, symbol: &Id, value: Value) {
-        self.bindings.insert_mut(symbol.name().to_string(), value);
+    #[must_use]
+    pub fn add_symbol(&self, symbol: Id, value: Value) -> Self {
+        Self {
+            bindings: self.bindings.insert(symbol.name().to_string(), value),
+        }
     }
+
     pub fn add_builtin<F>(&mut self, name: &str, f: F)
     where
         F: Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static,
     {
         self.bindings
-            .insert(name.to_string(), Value::builtin(Rc::new(f)));
+            .insert_mut(name.to_string(), Value::builtin(Rc::new(f)));
     }
 }

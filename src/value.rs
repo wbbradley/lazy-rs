@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{env::Env, parser::KEYWORDS};
 
@@ -50,7 +50,7 @@ impl std::str::FromStr for Id {
             Err(IdError(s.to_string()))
         } else {
             Ok(Self {
-                name: t.to_string(),
+                name: s.to_string(),
             })
         }
     }
@@ -69,7 +69,7 @@ impl Id {
     pub fn is_valid(id: &str) -> bool {
         id.chars()
             .next()
-            .map_or(false, |c| c.is_alphabetic() || c.is_ascii_punctuation())
+            .is_some_and(|c| c.is_alphabetic() || c.is_ascii_punctuation())
             && !KEYWORDS.iter().any(|&kwd| kwd == id)
     }
     pub fn name(&self) -> &str {
@@ -138,15 +138,15 @@ pub enum Value {
     Null,
     Lambda {
         param_names: Vec<Id>,
-        body: Rc<Value>,
+        body: Box<Value>,
     },
     Id(Id),
     Match {
-        subject: Rc<Value>,
+        subject: Box<Value>,
         pattern_exprs: Vec<PatternExpr>,
     },
     Callsite {
-        function: Rc<Value>,
+        function: Box<Value>,
         arguments: Vec<Value>,
     },
     Tuple {
@@ -154,14 +154,14 @@ pub enum Value {
     },
     Thunk {
         env: Env,
-        expr: Rc<Value>,
-        memoized: Option<Rc<Value>>,
+        // Envs that share the same thunks will share the memoized value.
+        expr: Rc<RefCell<Value>>,
     },
     Builtin(Rc<Builtin>),
     Let {
         name: Id,
-        value: Rc<Value>,
-        body: Rc<Value>,
+        value: Box<Value>,
+        body: Box<Value>,
     },
     Ctor {
         name: CtorId,
