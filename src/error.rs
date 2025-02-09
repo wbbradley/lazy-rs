@@ -21,6 +21,21 @@ impl From<log::SetLoggerError> for Error {
         )
     }
 }
+impl From<crate::value::IdError> for Error {
+    #[track_caller]
+    fn from(e: crate::value::IdError) -> Self {
+        Self(format!("id error: {e}"), std::panic::Location::caller())
+    }
+}
+impl From<crate::value::CtorIdError> for Error {
+    #[track_caller]
+    fn from(e: crate::value::CtorIdError) -> Self {
+        Self(
+            format!("constructor error: {e}"),
+            std::panic::Location::caller(),
+        )
+    }
+}
 impl From<std::io::Error> for Error {
     #[track_caller]
     fn from(e: std::io::Error) -> Self {
@@ -36,6 +51,12 @@ impl From<nom::Err<VerboseError<&str>>> for Error {
         )
     }
 }
+impl From<nom::Err<nom::error::Error<&str>>> for Error {
+    #[track_caller]
+    fn from(e: nom::Err<nom::error::Error<&str>>) -> Self {
+        Self(format!("nom error: {}", e), std::panic::Location::caller())
+    }
+}
 impl From<std::num::ParseIntError> for Error {
     #[track_caller]
     fn from(e: std::num::ParseIntError) -> Self {
@@ -49,5 +70,11 @@ impl From<String> for Error {
     #[track_caller]
     fn from(e: String) -> Self {
         Self(e, std::panic::Location::caller())
+    }
+}
+impl From<&'static str> for Error {
+    #[track_caller]
+    fn from(e: &'static str) -> Self {
+        Self(e.to_string(), std::panic::Location::caller())
     }
 }

@@ -1,19 +1,19 @@
 #![allow(dead_code)]
 use std::{fmt::Debug, rc::Rc};
 
-use crate::env::Env;
+use crate::{env::Env, parser::KEYWORDS};
 
 #[derive(Debug, Clone)]
 pub enum Predicate {
-    Id(String),
+    Id(Id),
     Int(i64),
     Tuple(Vec<Predicate>),
-    Ctor(String, Vec<Predicate>),
+    Ctor(Id, Vec<Predicate>),
 }
 
 #[derive(Debug, Clone)]
 pub struct Decl {
-    pub name: String,
+    pub name: Id,
     pub pattern: Vec<Predicate>,
     pub body: Value,
 }
@@ -24,17 +24,121 @@ pub struct PatternExpr {
     pub expr: Value,
 }
 
+#[derive(Debug, Clone)]
+pub struct Id {
+    name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct IdError(pub String);
+
+impl std::fmt::Display for IdError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Id must start with an alphabetic letter or valid punctuation: '{}'",
+            self.0
+        )
+    }
+}
+impl std::error::Error for IdError {}
+
+impl std::str::FromStr for Id {
+    type Err = IdError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !Self::is_valid(s) {
+            Err(IdError(s.to_string()))
+        } else {
+            Ok(Self {
+                name: t.to_string(),
+            })
+        }
+    }
+}
+
+impl From<&'static str> for Id {
+    fn from(s: &'static str) -> Self {
+        debug_assert!(Self::is_valid(s));
+        Self {
+            name: s.to_string(),
+        }
+    }
+}
+
+impl Id {
+    pub fn is_valid(id: &str) -> bool {
+        id.chars()
+            .next()
+            .map_or(false, |c| c.is_alphabetic() || c.is_ascii_punctuation())
+            && !KEYWORDS.iter().any(|&kwd| kwd == id)
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorId {
+    name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorIdError(pub String);
+
+impl std::fmt::Display for CtorIdError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "CtorId must start with an alphabetic letter or valid punctuation: '{}'",
+            self.0
+        )
+    }
+}
+impl std::error::Error for CtorIdError {}
+
+impl std::str::FromStr for CtorId {
+    type Err = CtorIdError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !Self::is_valid(s) {
+            Err(CtorIdError(s.to_string()))
+        } else {
+            Ok(Self {
+                name: s.to_string(),
+            })
+        }
+    }
+}
+
+impl From<&'static str> for CtorId {
+    fn from(s: &'static str) -> Self {
+        debug_assert!(Self::is_valid(s));
+        Self {
+            name: s.to_string(),
+        }
+    }
+}
+
+impl CtorId {
+    pub fn is_valid(ctor_id: &str) -> bool {
+        ctor_id.chars().next().map_or(false, |c| !c.is_uppercase())
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
 // Runtime values
 #[derive(Clone)]
 pub enum Value {
     Int(i64),
-    Str(Rc<String>),
+    Str(String),
     Null,
     Lambda {
-        param_names: Vec<String>,
+        param_names: Vec<Id>,
         body: Rc<Value>,
     },
-    Id(Rc<String>),
+    Id(Id),
     Match {
         subject: Rc<Value>,
         pattern_exprs: Vec<PatternExpr>,
@@ -53,12 +157,12 @@ pub enum Value {
     },
     Builtin(Rc<dyn Fn(Vec<Value>) -> Value>),
     Let {
-        name: String,
+        name: Id,
         value: Rc<Value>,
         body: Rc<Value>,
     },
     Ctor {
-        name: String,
+        name: CtorId,
         dims: Vec<Value>,
     },
 }
@@ -67,8 +171,8 @@ impl Value {
     pub(crate) fn builtin(f: Rc<dyn Fn(Vec<Value>) -> Value>) -> Self {
         Self::Builtin(f)
     }
-    pub(crate) fn id(name: impl std::ops::AsRef<str>) -> Self {
-        Self::Id(Rc::new(name.to_string()))
+    pub(crate) fn id(name: impl AsRef<str>) -> Self {
+        Self::Id(Id::new(name))
     }
 }
 impl Debug for Value {
