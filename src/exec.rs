@@ -142,7 +142,7 @@ impl Continuation {
             next: None,
         }
     }
-    pub fn prepare(self, value: Value) -> Result<Self> {
+    pub fn prepare(self, value: Value) -> Result<(Value, Self)> {
         match self.choice {
             ContinuationChoice::Done => {
                 panic!("why are we preparing when we're Done? {value:#?}")

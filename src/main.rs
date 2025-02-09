@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use error::Result;
 
 mod env;
@@ -45,7 +43,6 @@ fn main() -> Result<()> {
 fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeError> {
     // Return a value in WHNF.
     // State is maintained in the expr register and the continuation list.
-    let expr = RefCell::new(expr);
     let message = format!("Walk({expr:?})");
     let mut continuation: Continuation = Continuation::walk(env, message);
     loop {
@@ -54,18 +51,19 @@ fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeErr
             ContinuationChoice::Done => {
                 if let Some(next) = continuation.next {
                     // Push this value on to the next continuation.
-
-                    (*next).prepare(expr)?
+                    let (new_expr, new_continuation) = (*next).prepare(expr)?;
+                    expr = new_expr;
+                    new_continuation
                 } else {
                     break Ok(expr);
                 }
             }
-            ContinuationChoice::Walk { env } if is_weak_head_normal_form(&expr) => Continuation {
+            ContinuationChoice::Walk { .. } if is_weak_head_normal_form(&expr) => Continuation {
                 message: "from a Walk".to_string(),
                 choice: ContinuationChoice::Done,
                 next: continuation.next,
             },
-            ContinuationChoice::Walk { env } => match expr {
+            ContinuationChoice::Walk { ref env } => match expr {
                 Value::Int(_) => todo!(),
                 Value::Str(_) => todo!(),
                 Value::Null => todo!(),
@@ -84,11 +82,17 @@ fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeErr
                 } => {
                     // Evaluation the function, then pass that to the arguments.
                     expr = *function;
-                    Continuation {
+                    // Chain the continuation.
+                    continuation.next = Some(Box::new(Continuation {
                         message: "callsite walk".to_string(),
-                        choice: ContinuationChoice::Callsite { env, arguments },
+                        choice: ContinuationChoice::Callsite {
+                            env: env.clone(),
+                            arguments,
+                        },
                         next: continuation.next,
-                    }
+                    }));
+                    // Re-use the existing continuation for perf.
+                    continue;
                 }
                 Value::Tuple { dims: _ } => todo!(),
                 Value::Thunk { env: _, expr: _ } => todo!(),
