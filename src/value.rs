@@ -120,7 +120,7 @@ impl From<&'static str> for CtorId {
 
 impl CtorId {
     pub fn is_valid(ctor_id: &str) -> bool {
-        ctor_id.chars().next().map_or(false, |c| !c.is_uppercase())
+        ctor_id.chars().next().is_some_and(|c| !c.is_uppercase())
     }
 
     pub fn name(&self) -> &str {

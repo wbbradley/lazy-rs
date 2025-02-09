@@ -120,18 +120,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
-name = "lazy-rs"
-version = "0.1.0"
-dependencies = [
- "clap",
- "log",
- "nom",
- "nom-language",
- "rc-slice2",
- "rpds",
-]
-
-[[package]]
 name = "log"
 version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -166,6 +154,18 @@ name = "once_cell"
 version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
+
+[[package]]
+name = "pita"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "log",
+ "nom",
+ "nom-language",
+ "rc-slice2",
+ "rpds",
+]
 
 [[package]]
 name = "proc-macro2"
