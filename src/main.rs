@@ -74,8 +74,8 @@ fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeErr
                 Value::Id(id) => {
                     let new_expr = env
                         .get_symbol(&id)
-                        .ok_or(RuntimeError::UnresolvedSymbol(id))
-                        .cloned()?;
+                        .ok_or(RuntimeError::UnresolvedSymbol(id))?
+                        .clone();
                     expr = new_expr;
                     continue;
                 }
