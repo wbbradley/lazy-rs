@@ -71,7 +71,14 @@ fn walk_tree(env: Env, mut expr: Value) -> std::result::Result<Value, RuntimeErr
                     param_names: _,
                     body: _,
                 } => todo!(),
-                Value::Id(_id) => todo!(),
+                Value::Id(id) => {
+                    let new_expr = env
+                        .get_symbol(&id)
+                        .ok_or(RuntimeError::UnresolvedSymbol(id))
+                        .cloned()?;
+                    expr = new_expr;
+                    continue;
+                }
                 Value::Match {
                     subject: _,
                     pattern_exprs: _,

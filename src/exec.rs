@@ -1,4 +1,5 @@
 #![allow(dead_code, unused_variables)]
+use crate::value::Id;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -9,7 +10,7 @@ type Result<T> = std::result::Result<T, RuntimeError>;
 
 #[derive(Debug)]
 pub enum RuntimeError {
-    UnresolvedSymbol(String),
+    UnresolvedSymbol(Id),
     InvalidDecl(String),
     InvalidCallsite(String),
     NoMatch(String),
