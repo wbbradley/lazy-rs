@@ -1,10 +1,12 @@
 //! Pita is a programming language for writing lazy functional programs.
 use crate::error::PitaError;
-use test_each_file::test_each_file;
+use test_each_file::test_each_path;
 
 mod env;
 mod error;
+mod location;
 mod parser;
+mod token;
 mod value;
 
 mod runtime {
@@ -134,14 +136,14 @@ fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
     }
 }
 
-test_each_file! { in "./tests" => test::test_pita_file }
+test_each_path! { in "./tests" => test::test_pita_file }
 
 #[cfg(test)]
 mod test {
     use crate::run_program;
 
-    pub(crate) fn test_pita_file(content: &str) {
-        run_program()
-        assert!(content.is_empty());
+    pub(crate) fn test_pita_file(filename: &std::path::Path) {
+        let result = run_program(filename);
+        assert!(result.is_ok(), "running {filename:?}: {result:?}");
     }
 }

@@ -7,16 +7,19 @@ use nom::{
     error::ParseError,
     multi::{many0, many1, separated_list0},
     sequence::{delimited, pair, terminated},
-    IResult, Parser,
+    Parser,
 };
+use nom_locate::{position, LocatedSpan};
 use std::str::FromStr;
 
 use crate::{
     error::PitaError,
+    token::Token,
     value::{Decl, Id, PatternExpr, Predicate, Value},
 };
 
-type Span<'a> = LocatedSpan<&'a str>;
+type IResult<'a, O> = nom::IResult<Span<'a>, O>;
+type Span<'a> = LocatedSpan<&'a str, &'static str>;
 
 pub const KEYWORDS: &[&str] = &[
     "<-", "->", ":", ";", "else", "if", "let", "match", "do", "then",
@@ -27,14 +30,16 @@ fn is_identifier_char(c: char) -> bool {
 }
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
-pub fn ws<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, Output = O, Error = E>
+pub fn ws<'a, O, E: ParseError<Span<'a>>, F>(
+    inner: F,
+) -> impl Parser<Span<'a>, Output = O, Error = E>
 where
-    F: Parser<&'a str, Output = O, Error = E>,
+    F: Parser<Span<'a>, Output = O, Error = E>,
 {
     delimited(multispace0, inner, multispace0)
 }
 
-fn identifier(input: &str) -> IResult<&str, &str> {
+fn identifier(input: Span) -> IResult<Span> {
     recognize(pair(
         take_while1(|c: char| c.is_alphabetic() || c == '_'),
         take_while(is_identifier_char),
@@ -42,20 +47,20 @@ fn identifier(input: &str) -> IResult<&str, &str> {
     .parse(input)
 }
 
-fn id_parser(input: &str) -> IResult<&str, Id> {
-    map_res(ws(identifier), Id::from_str).parse(input)
+fn id_parser(input: Span) -> IResult<Id> {
+    map_res(map(ws(identifier), Token::from), Id::try_from).parse(input)
 }
 
-fn number_parser(input: &str) -> IResult<&str, Value> {
-    map_res(ws(digit1), |x| i64::from_str(x).map(Value::Int)).parse(input)
+fn number_parser(input: Span) -> IResult<Value> {
+    map_res(ws(digit1), |x| i64::from_str(x.fragment()).map(Value::Int)).parse(input)
 }
 
-fn string_literal_parser(input: &str) -> IResult<&str, Value> {
+fn string_literal_parser(input: Span) -> IResult<Value> {
     map(string_literal, Value::Str).parse(input)
 }
 
-fn string_literal(input: &str) -> IResult<&str, String> {
-    ws(delimited(
+fn string_literal(input: Span) -> IResult<String> {
+    Ok(ws(delimited(
         char('"'),
         map(
             many0(alt((
@@ -63,7 +68,7 @@ fn string_literal(input: &str) -> IResult<&str, String> {
                 map(tag("\\n"), |_| '\n'),
                 map(tag("\\t"), |_| '\t'),
                 map(tag("\\r"), |_| '\r'),
-                map(take_while1(|c| c != '"' && c != '\\'), |s: &str| {
+                map(take_while1(|c| c != '"' && c != '\\'), |s: Span| {
                     s.chars().next().unwrap()
                 }),
             ))),
@@ -71,10 +76,10 @@ fn string_literal(input: &str) -> IResult<&str, String> {
         ),
         char('"'),
     ))
-    .parse(input)
+    .parse(input)?)
 }
 
-fn ctor_predicate_parser(input: &str) -> IResult<&str, Predicate> {
+fn ctor_predicate_parser(input: Span) -> IResult<Predicate> {
     ws(map(
         pair(id_parser, many0(predicate_parser)),
         |(ctor, preds)| Predicate::Ctor(ctor, preds),
@@ -82,21 +87,21 @@ fn ctor_predicate_parser(input: &str) -> IResult<&str, Predicate> {
     .parse(input)
 }
 
-fn predicate_parser(input: &str) -> IResult<&str, Predicate> {
+fn predicate_parser(input: Span) -> IResult<Predicate> {
     ws(alt((
         // Parse negative number predicates.
-        map_res((tag("-"), ws(digit1)), |s: (&str, &str)| {
-            s.1.parse().map(|x: i64| Predicate::Int(-x))
+        map_res((tag("-"), ws(digit1)), |(_, digits)| {
+            digits.parse().map(|x: i64| Predicate::Int(-x))
         }),
         // Parse positive number predicates.
-        map_res(digit1, |s: &str| s.parse().map(Predicate::Int)),
+        map_res(digit1, |s: Span| s.parse().map(Predicate::Int)),
         ctor_predicate_parser,
         map(id_parser, Predicate::Id),
     )))
     .parse(input)
 }
 
-fn match_parser(input: &str) -> IResult<&str, Value> {
+fn match_parser(input: Span) -> IResult<Value> {
     map(
         (
             ws(tag("match")),
@@ -121,7 +126,7 @@ fn match_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn let_parser(input: &str) -> IResult<&str, Value> {
+fn let_parser(input: Span) -> IResult<Value> {
     map(
         (
             ws(tag("let")),
@@ -140,7 +145,7 @@ fn let_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn do_line_parser(input: &str) -> IResult<&str, DoLine> {
+fn do_line_parser(input: Span) -> IResult<DoLine> {
     alt((
         // bind syntax: x <- expr
         map((id_parser, ws(tag("<-")), expr_parser), |(id, _, expr)| {
@@ -157,7 +162,7 @@ fn do_line_parser(input: &str) -> IResult<&str, DoLine> {
     .parse(input)
 }
 
-fn do_parser(input: &str) -> IResult<&str, Value> {
+fn do_parser(input: Span) -> IResult<Value> {
     map_res(
         (
             ws(tag("do")),
@@ -168,7 +173,7 @@ fn do_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn lambda_parser(input: &str) -> IResult<&str, Value> {
+fn lambda_parser(input: Span) -> IResult<Value> {
     map(
         (many1(id_parser), ws(tag("->")), expr_parser),
         |(params, _, body)| Value::Lambda {
@@ -179,7 +184,7 @@ fn lambda_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn tuple_ctor_parser(input: &str) -> IResult<&str, Value> {
+fn tuple_ctor_parser(input: Span) -> IResult<Value> {
     map(
         delimited(
             ws(char('(')),
@@ -191,7 +196,7 @@ fn tuple_ctor_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn if_then_else_parser(input: &str) -> IResult<&str, Value> {
+fn if_then_else_parser(input: Span) -> IResult<Value> {
     map(
         (
             ws(tag("if")),
@@ -220,7 +225,7 @@ fn if_then_else_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn callsite_parser(input: &str) -> IResult<&str, Value> {
+fn callsite_parser(input: Span) -> IResult<Value> {
     map(many1(callsite_term_parser), |mut terms| {
         if terms.len() == 1 {
             terms.remove(0)
@@ -234,7 +239,7 @@ fn callsite_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn callsite_term_parser(input: &str) -> IResult<&str, Value> {
+fn callsite_term_parser(input: Span) -> IResult<Value> {
     ws(alt((
         string_literal_parser,
         tuple_ctor_parser,
@@ -248,7 +253,7 @@ fn callsite_term_parser(input: &str) -> IResult<&str, Value> {
     .parse(input)
 }
 
-fn decl_parser(input: &str) -> IResult<&str, Decl> {
+fn decl_parser(input: Span) -> IResult<Decl> {
     map(
         (
             id_parser,
@@ -266,10 +271,7 @@ fn decl_parser(input: &str) -> IResult<&str, Decl> {
     .parse(input)
 }
 
-pub(crate) fn program_parser(
-    filename: impl AsRef<std::path::Path>,
-    input: &str,
-) -> IResult<&str, Vec<Decl>> {
+pub(crate) fn program_parser(input: Span) -> IResult<Vec<Decl>> {
     terminated(many0(decl_parser), multispace0).parse(input)
 }
 
@@ -304,7 +306,7 @@ enum DoLine {
     Expr(Value),
 }
 
-fn expr_parser(input: &str) -> IResult<&str, Value> {
+fn expr_parser(input: Span) -> IResult<Value> {
     ws(alt((
         match_parser,
         number_parser,

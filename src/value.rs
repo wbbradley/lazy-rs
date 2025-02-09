@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use crate::{env::Env, parser::KEYWORDS};
+use crate::{env::Env, parser::KEYWORDS, token::Token};
 
 #[derive(Debug, Clone)]
 pub enum Predicate {
@@ -26,41 +26,31 @@ pub struct PatternExpr {
 
 #[derive(Debug, Clone)]
 pub struct Id {
-    name: String,
+    name: Token,
 }
 
 #[derive(Debug, Clone)]
-pub struct IdError(pub String);
+pub struct IdError(pub Token);
 
 impl std::fmt::Display for IdError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Id must start with an alphabetic letter or valid punctuation: '{}'",
-            self.0
+            "{}: error: id must start with an alphabetic letter or valid punctuation: '{}'",
+            self.0.location, self.0.text
         )
     }
 }
 impl std::error::Error for IdError {}
 
-impl std::str::FromStr for Id {
-    type Err = IdError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !Self::is_valid(s) {
-            Err(IdError(s.to_string()))
+impl<'a> TryFrom<Token> for Id {
+    type Error = IdError;
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        let name = &value.text;
+        if !Self::is_valid(name) {
+            Err(IdError(value))
         } else {
-            Ok(Self {
-                name: s.to_string(),
-            })
-        }
-    }
-}
-
-impl From<&'static str> for Id {
-    fn from(s: &'static str) -> Self {
-        debug_assert!(Self::is_valid(s));
-        Self {
-            name: s.to_string(),
+            Ok(Self { name: value })
         }
     }
 }
@@ -73,7 +63,7 @@ impl Id {
             && !KEYWORDS.iter().any(|&kwd| kwd == id)
     }
     pub fn name(&self) -> &str {
-        &self.name
+        &self.name.text
     }
 }
 
@@ -83,7 +73,7 @@ pub struct CtorId {
 }
 
 #[derive(Debug, Clone)]
-pub struct CtorIdError(pub String);
+pub struct CtorIdError(pub Token);
 
 impl std::fmt::Display for CtorIdError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
