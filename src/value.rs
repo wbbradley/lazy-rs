@@ -128,6 +128,8 @@ impl CtorId {
     }
 }
 
+pub type Builtin = dyn Fn(Vec<Value>) -> std::result::Result<Value, crate::runtime::RuntimeError>;
+
 // Runtime values
 #[derive(Clone)]
 pub enum Value {
@@ -155,7 +157,7 @@ pub enum Value {
         expr: Rc<Value>,
         memoized: Option<Rc<Value>>,
     },
-    Builtin(Rc<dyn Fn(Vec<Value>) -> Value>),
+    Builtin(Rc<Builtin>),
     Let {
         name: Id,
         value: Rc<Value>,
@@ -168,12 +170,12 @@ pub enum Value {
 }
 
 impl Value {
-    pub(crate) fn builtin(f: Rc<dyn Fn(Vec<Value>) -> Value>) -> Self {
+    pub(crate) fn builtin(f: Rc<Builtin>) -> Self {
         Self::Builtin(f)
     }
-    pub(crate) fn id(name: impl AsRef<str>) -> Self {
+    /*pub(crate) fn id(name: impl AsRef<str>) -> Self {
         Self::Id(Id::new(name))
-    }
+    }*/
 }
 impl Debug for Value {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

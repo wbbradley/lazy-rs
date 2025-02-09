@@ -1,16 +1,17 @@
-use std::collections::HashMap;
+use crate::runtime::RuntimeError;
+use std::rc::Rc;
 
-use crate::value::Value;
+use crate::value::{Id, Value};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Env {
-    bindings: HashMap<String, Value>,
+    bindings: rpds::RedBlackTreeMap<String, Value>,
 }
 
 impl Env {
     pub fn new() -> Self {
         Self {
-            bindings: HashMap::new(),
+            bindings: Default::default(),
         }
     }
 
@@ -32,22 +33,22 @@ impl Env {
         self.bindings.contains_key(symbol)
     }
 
-    pub fn get_symbol(&self, symbol: &str) -> Option<Value> {
-        self.bindings.get(symbol).cloned()
+    pub fn get_symbol(&self, symbol: &Id) -> Option<&Value> {
+        self.bindings.get(symbol.name())
     }
 
-    pub fn add_global_symbol(&mut self, symbol: String, value: Value) {
-        self.bindings.insert(symbol, value);
+    pub fn add_global_symbol(&mut self, symbol: &Id, value: Value) {
+        self.bindings.insert_mut(symbol.name().to_string(), value);
     }
 
-    pub fn add_symbol(&mut self, symbol: String, value: Value) {
-        self.bindings.insert(symbol, value);
+    pub fn add_symbol(&mut self, symbol: &Id, value: Value) {
+        self.bindings.insert_mut(symbol.name().to_string(), value);
     }
     pub fn add_builtin<F>(&mut self, name: &str, f: F)
     where
-        F: Fn(Vec<Value>) -> Value + 'static,
+        F: Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static,
     {
         self.bindings
-            .insert(name.to_string(), Value::builtin(std::rc::Rc::new(f)));
+            .insert(name.to_string(), Value::builtin(Rc::new(f)));
     }
 }

@@ -30,10 +30,10 @@ impl Step {
                 Value::Int(x) => Ok(Step::Done(Value::Int(x))),
                 Value::Str(x) => Ok(Step::Done(Value::Str(x))),
                 Value::Id(ref id) => {
-                    if let Some(value) = env.get_symbol(&id.name) {
+                    if let Some(value) = env.get_symbol(id) {
                         Ok(Step::Walk {
                             env,
-                            expr: value,
+                            expr: value.clone(),
                             next,
                         })
                     } else {
@@ -146,7 +146,7 @@ impl Continuation {
                             "Wrong number of arguments".into(),
                         ));
                     }
-                    let mut new_env = env.clone_globals();
+                    let mut new_env = env.clone();
                     for (param, arg) in lambda.param_names.iter().zip(arguments) {
                         new_env.add_symbol(
                             param.name.clone(),

@@ -17,7 +17,9 @@ use crate::{
     value::{Decl, Id, PatternExpr, Predicate, Value},
 };
 
-pub const KEYWORDS: &[&str] = &["->", ":", "else", "if", "let", "match", "do", "then"];
+pub const KEYWORDS: &[&str] = &[
+    "<-", "->", ":", ";", "else", "if", "let", "match", "do", "then",
+];
 
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || "_!@$%^&*+=<>|".contains(c)
@@ -155,10 +157,10 @@ fn do_line_parser(input: &str) -> IResult<&str, DoLine> {
 }
 
 fn do_parser(input: &str) -> IResult<&str, Value> {
-    map(
+    map_res(
         (
             ws(tag("do")),
-            separated_list0(ws(char(',')), do_line_parser),
+            separated_list0(ws(char(';')), do_line_parser),
         ),
         |(_, lines)| convert_do_notation(&lines),
     )
@@ -280,7 +282,7 @@ fn convert_do_notation(lines: &[DoLine]) -> Result<Value> {
             body: Rc::new(convert_do_notation(rest)?),
         },
         [DoLine::Bind(name, expr), rest @ ..] => Value::Callsite {
-            function: Rc::new(Value::id(">>=")),
+            function: Rc::new(Value::Id(">>=".into())),
             arguments: vec![
                 expr.clone(),
                 Value::Lambda {
