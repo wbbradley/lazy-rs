@@ -14,17 +14,28 @@ pub fn parse_id<E: IdErrorTrait>(token: Token) -> Result<Id, crate::error::PitaE
 }
 
 pub fn value_from_id<C: IdErrorTrait>(name: &str) -> Value {
-    Value::Id(
-        parse_id::<C>(Token {
-            text: name.to_string(),
-            location: Location {
-                filename: "<runtime>",
-                line: 0,
-                col: 0,
-            },
-        })
-        .expect("id is valid"),
-    )
+    Value::Id(internal_id(name))
+}
+
+pub fn internal_id(name: &str) -> Id {
+    internal_id_impl::<IdImpl>(name)
+}
+
+pub fn internal_ctor_id(name: &str) -> Id {
+    internal_id_impl::<CtorIdImpl>(name)
+}
+
+pub fn internal_id_impl<E: IdErrorTrait>(name: &str) -> Id {
+    debug_assert!(E::is_valid(name));
+    parse_id::<E>(Token {
+        text: name.to_string(),
+        location: Location {
+            filename: "<runtime>",
+            line: 0,
+            col: 0,
+        },
+    })
+    .unwrap()
 }
 
 pub trait IdErrorTrait {

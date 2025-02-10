@@ -15,7 +15,7 @@ use nom_locate::LocatedSpan;
 
 use crate::{
     error::PitaError,
-    id::Id,
+    id::{internal_ctor_id, internal_id, parse_id, Id, IdImpl},
     token::Token,
     value::{Decl, PatternExpr, Predicate, Value},
 };
@@ -46,7 +46,7 @@ fn identifier(input: Span) -> IResult<Span> {
 }
 
 fn id_parser(input: Span) -> IResult<Id> {
-    map_res(map(ws(identifier), Token::from), Id::try_from).parse(input)
+    map_res(map(ws(identifier), Token::from), parse_id::<IdImpl>).parse(input)
 }
 
 fn number_parser(input: Span) -> IResult<Value> {
@@ -58,7 +58,7 @@ fn string_literal_parser(input: Span) -> IResult<Value> {
 }
 
 fn string_literal(input: Span) -> IResult<String> {
-    Ok(ws(delimited(
+    ws(delimited(
         char('"'),
         map(
             many0(alt((
@@ -74,7 +74,7 @@ fn string_literal(input: Span) -> IResult<String> {
         ),
         char('"'),
     ))
-    .parse(input)?)
+    .parse(input)
 }
 
 fn ctor_predicate_parser(input: Span) -> IResult<Predicate> {
@@ -214,7 +214,7 @@ fn if_then_else_parser(input: Span) -> IResult<Value> {
                     expr: then_expr,
                 },
                 PatternExpr {
-                    predicate: Predicate::Ctor("False".into(), vec![]),
+                    predicate: Predicate::Ctor(internal_ctor_id("False"), vec![]),
                     expr: else_expr,
                 },
             ],
@@ -284,7 +284,7 @@ fn convert_do_notation(lines: &[DoLine]) -> Result<Value, PitaError> {
             body: Box::new(convert_do_notation(rest)?),
         },
         [DoLine::Bind(name, expr), rest @ ..] => Value::Callsite {
-            function: Box::new(Value::Id(">>=".into())),
+            function: Box::new(Value::Id(internal_id(">>="))),
             arguments: vec![
                 expr.clone(),
                 Value::Lambda {

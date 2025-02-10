@@ -43,38 +43,6 @@ impl std::fmt::Display for CtorIdError {
 }
 impl std::error::Error for CtorIdError {}
 
-impl std::str::FromStr for CtorId {
-    type Err = CtorIdError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !Self::is_valid(s) {
-            Err(CtorIdError(s.to_string()))
-        } else {
-            Ok(Self {
-                name: s.to_string(),
-            })
-        }
-    }
-}
-
-impl From<&'static str> for CtorId {
-    fn from(s: &'static str) -> Self {
-        debug_assert!(Self::is_valid(s));
-        Self {
-            name: s.to_string(),
-        }
-    }
-}
-
-impl CtorId {
-    pub fn is_valid(ctor_id: &str) -> bool {
-        ctor_id.chars().next().is_some_and(|c| !c.is_uppercase())
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
 pub type Builtin =
     dyn Fn(Vec<Value>) -> std::result::Result<Value, crate::runtime::error::RuntimeError>;
 
