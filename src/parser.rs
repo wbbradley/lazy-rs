@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::str::FromStr;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
@@ -9,21 +11,17 @@ use nom::{
     sequence::{delimited, pair, terminated},
     Parser,
 };
-use nom_locate::{position, LocatedSpan};
-use std::str::FromStr;
+use nom_locate::LocatedSpan;
 
 use crate::{
     error::PitaError,
+    id::Id,
     token::Token,
-    value::{Decl, Id, PatternExpr, Predicate, Value},
+    value::{Decl, PatternExpr, Predicate, Value},
 };
 
 type IResult<'a, O> = nom::IResult<Span<'a>, O>;
-type Span<'a> = LocatedSpan<&'a str, &'static str>;
-
-pub const KEYWORDS: &[&str] = &[
-    "<-", "->", ":", ";", "else", "if", "let", "match", "do", "then",
-];
+pub type Span<'a> = LocatedSpan<&'a str, &'static str>;
 
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || "_!@$%^&*+=<>|".contains(c)
@@ -212,7 +210,7 @@ fn if_then_else_parser(input: Span) -> IResult<Value> {
             subject: Box::new(condition),
             pattern_exprs: vec![
                 PatternExpr {
-                    predicate: Predicate::Ctor("True".into(), vec![]),
+                    predicate: Predicate::Ctor(internal_ctor_id("True"), vec![]),
                     expr: then_expr,
                 },
                 PatternExpr {

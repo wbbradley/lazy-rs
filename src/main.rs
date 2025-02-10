@@ -1,9 +1,7 @@
 //! Pita is a programming language for writing lazy functional programs.
-use crate::error::PitaError;
-use test_each_file::test_each_path;
-
 mod env;
 mod error;
+mod id;
 mod location;
 mod parser;
 mod token;
@@ -14,33 +12,43 @@ mod runtime {
     pub(crate) mod exec;
 }
 
-// Example clap arguments.
+use clap::Parser;
+use test_each_file::test_each_path;
+
 use crate::{
     env::Env,
-    runtime::error::RuntimeError,
-    runtime::exec::{is_weak_head_normal_form, Continuation, ContinuationChoice},
+    error::{error, PitaError},
+    id::{value_from_id, IdImpl},
+    runtime::{
+        error::RuntimeError,
+        exec::{is_weak_head_normal_form, Continuation, ContinuationChoice},
+    },
     value::Value,
 };
-use clap::Parser;
 
 #[derive(Parser)]
 struct Args {
     /// The file to execute
-    file: String,
+    filename: String,
 }
 
 fn main() -> Result<(), PitaError> {
     tracing_subscriber::fmt::init();
     let args = Args::parse();
-    let value = run_program(args)?;
+    let value = run_program(args.filename)?;
     tracing::info!("{:#?}", value);
     Ok(())
 }
 
 fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError> {
-    let input = std::fs::read_to_string(filename).expect("reading file");
-    let filename = filename.as_ref().display().to_string();
-    let decls = parser::program_parser(filename, &input)?;
+    let filename = filename.as_ref();
+    if !filename.exists() {
+        return Err(error!("file {filename:?} does not exist"));
+    }
+    let content = std::fs::read_to_string(filename)?;
+    let filename = filename.display().to_string().leak();
+    let file_span = crate::parser::Span::new_extra(&content, filename);
+    let decls = parser::program_parser(file_span)?;
     let mut env = Env::with_builtins();
     for d in decls.1 {
         tracing::info!("{:#?}", d);
@@ -48,7 +56,7 @@ fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError
     }
     // Build an entrypoint which is a call to user `main`.
     let entrypoint = Value::Callsite {
-        function: Box::new(Value::Id("main".into())),
+        function: Box::new(value_from_id::<IdImpl>("main")),
         arguments: vec![],
     };
     let result = walk_tree(env, entrypoint);

@@ -1,20 +1,35 @@
 #![allow(dead_code)]
 use nom_language::error::VerboseError;
 
-use crate::runtime::error::RuntimeError;
+use crate::{
+    id::{IdError, IdErrorTrait},
+    runtime::error::RuntimeError,
+};
+
+macro_rules! error {
+    ($($arg:tt)*) => {
+        PitaError::new(format!($($arg)*), std::panic::Location::caller())
+    };
+}
+pub(crate) use error;
 
 #[derive(Debug)]
 pub struct PitaError(String, &'static std::panic::Location<'static>);
 
+impl PitaError {
+    pub fn new(msg: String, location: &'static std::panic::Location<'static>) -> Self {
+        Self(msg, location)
+    }
+}
 impl std::fmt::Display for PitaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: cvr error: {}", self.1, self.0)
     }
 }
 
-impl From<crate::value::IdError> for PitaError {
+impl<C: IdErrorTrait> From<IdError<C>> for PitaError {
     #[track_caller]
-    fn from(e: crate::value::IdError) -> Self {
+    fn from(e: IdError<C>) -> Self {
         Self(format!("id error: {e}"), std::panic::Location::caller())
     }
 }
@@ -51,9 +66,9 @@ impl From<nom::Err<VerboseError<&str>>> for PitaError {
         )
     }
 }
-impl From<nom::Err<nom::error::Error<&str>>> for PitaError {
+impl<T: std::fmt::Debug> From<nom::Err<nom::error::Error<T>>> for PitaError {
     #[track_caller]
-    fn from(e: nom::Err<nom::error::Error<&str>>) -> Self {
+    fn from(e: nom::Err<nom::error::Error<T>>) -> Self {
         Self(format!("nom error: {}", e), std::panic::Location::caller())
     }
 }

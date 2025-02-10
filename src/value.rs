@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use crate::{env::Env, parser::KEYWORDS, token::Token};
+use crate::{env::Env, id::Id, token::Token};
 
 #[derive(Debug, Clone)]
 pub enum Predicate {
@@ -22,49 +22,6 @@ pub struct Decl {
 pub struct PatternExpr {
     pub predicate: Predicate,
     pub expr: Value,
-}
-
-#[derive(Debug, Clone)]
-pub struct Id {
-    name: Token,
-}
-
-#[derive(Debug, Clone)]
-pub struct IdError(pub Token);
-
-impl std::fmt::Display for IdError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}: error: id must start with an alphabetic letter or valid punctuation: '{}'",
-            self.0.location, self.0.text
-        )
-    }
-}
-impl std::error::Error for IdError {}
-
-impl<'a> TryFrom<Token> for Id {
-    type Error = IdError;
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
-        let name = &value.text;
-        if !Self::is_valid(name) {
-            Err(IdError(value))
-        } else {
-            Ok(Self { name: value })
-        }
-    }
-}
-
-impl Id {
-    pub fn is_valid(id: &str) -> bool {
-        id.chars()
-            .next()
-            .is_some_and(|c| c.is_alphabetic() || c.is_ascii_punctuation())
-            && !KEYWORDS.iter().any(|&kwd| kwd == id)
-    }
-    pub fn name(&self) -> &str {
-        &self.name.text
-    }
 }
 
 #[derive(Debug, Clone)]

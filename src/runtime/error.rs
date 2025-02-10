@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::value::Id;
+use crate::id::Id;
 
 #[derive(Debug)]
 pub enum RuntimeError {
@@ -14,7 +14,7 @@ impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RuntimeError::UnresolvedSymbol(id) => {
-                write!(f, "pita runtime error: unresolved symbol: {}", id.name())
+                write!(f, "pita runtime error: unresolved symbol: {}", id)
             }
             RuntimeError::InvalidDecl(msg) => {
                 write!(f, "pita runtime error: invalid declaration: {msg}")

@@ -1,8 +1,7 @@
 #![allow(dead_code)]
-use crate::runtime::error::RuntimeError;
 use std::rc::Rc;
 
-use crate::value::{Id, Value};
+use crate::{id::Id, runtime::error::RuntimeError, value::Value};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Env {
