@@ -81,7 +81,21 @@ impl Continuation {
                 arguments: _,
             } => {
                 // function = value;
-                todo!();
+                match &value {
+                    Value::Ctor { name, dims } => {
+                        // Apply the arguments to the function.
+                        tracing::info!("applying {name:?} to {dims:?}");
+                        Ok((
+                            value,
+                            Continuation {
+                                message: "ctor is in whnf".to_string(),
+                                choice: ContinuationChoice::Done,
+                                next: self.next,
+                            },
+                        ))
+                    }
+                    _ => todo!(),
+                }
             }
             ContinuationChoice::Thunk { env: _, expr: _ } => todo!(),
         }
