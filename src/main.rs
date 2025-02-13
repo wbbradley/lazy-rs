@@ -21,7 +21,7 @@ use crate::{
     id::{value_from_id, IdImpl},
     runtime::{
         error::RuntimeError,
-        exec::{is_weak_head_normal_form, Continuation, ContinuationChoice},
+        exec::{walk, Continuation, ContinuationChoice},
     },
     value::Value,
 };
@@ -57,7 +57,11 @@ fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError
     // Build an entrypoint which is a call to user `main`.
     let entrypoint = Value::Callsite {
         function: Box::new(value_from_id::<IdImpl>("main")),
-        arguments: vec![],
+        argument: Box::new(Value::Tuple {
+            dims: vec![
+                // TODO: include command-line arguments.
+            ],
+        }),
     };
     let result = walk_tree(env, entrypoint);
     match result {
@@ -70,7 +74,8 @@ fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
     // Return a value in WHNF.
     // State is maintained in the expr register and the continuation list.
     let message = format!("Walk({expr:?})");
-    let mut continuation: Continuation = Continuation::walk(env, message);
+    let mut continuation = walk(env, message);
+
     loop {
         tracing::debug!("walk_tree loop on {continuation:?}");
         continuation = match continuation.choice {
@@ -84,19 +89,12 @@ fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
                     break Ok(expr);
                 }
             }
-            ContinuationChoice::Walk { .. } if is_weak_head_normal_form(&expr) => Continuation {
+            ContinuationChoice::Walk { .. } if expr.is_weak_head_normal_form() => Continuation {
                 message: "from a Walk".to_string(),
                 choice: ContinuationChoice::Done,
                 next: continuation.next,
             },
             ContinuationChoice::Walk { ref env } => match expr {
-                Value::Int(_) => todo!(),
-                Value::Str(_) => todo!(),
-                Value::Null => todo!(),
-                Value::Lambda {
-                    param_names: _,
-                    body: _,
-                } => todo!(),
                 Value::Id(id) => {
                     let new_expr = env
                         .get_symbol(&id)
@@ -105,28 +103,25 @@ fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
                     expr = new_expr;
                     continue;
                 }
-                Value::Match {
-                    subject: _,
-                    pattern_exprs: _,
-                } => todo!(),
-                Value::Callsite {
-                    function,
-                    arguments,
-                } => {
+                Value::Callsite { function, argument } => {
                     // Evaluate the callee, then apply the arguments to it.
                     expr = *function;
                     // Chain the continuation.
                     continuation.next = Some(Box::new(Continuation {
                         message: "callsite walk".to_string(),
-                        choice: ContinuationChoice::Callsite {
+                        choice: ContinuationChoice::Application {
                             env: env.clone(),
-                            arguments,
+                            argument: *argument,
                         },
                         next: continuation.next,
                     }));
                     // Re-use the existing continuation for perf.
                     continue;
                 }
+                Value::Match {
+                    subject: _,
+                    pattern_exprs: _,
+                } => todo!(),
                 Value::Tuple { dims: _ } => todo!(),
                 Value::Thunk { env: _, expr: _ } => todo!(),
                 Value::Builtin(_f) => todo!(),
@@ -135,10 +130,10 @@ fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
                     value: _,
                     body: _,
                 } => todo!(),
-                Value::Ctor { name: _, dims: _ } => todo!(),
+                _ => todo!("handle {expr:?} in Walk"),
             },
             ContinuationChoice::Match { .. } => todo!(),
-            ContinuationChoice::Callsite { .. } => todo!(),
+            ContinuationChoice::Application { .. } => todo!(),
             ContinuationChoice::Thunk { .. } => todo!(),
         }
     }

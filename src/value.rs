@@ -63,7 +63,7 @@ pub enum Value {
     },
     Callsite {
         function: Box<Value>,
-        arguments: Vec<Value>,
+        argument: Box<Value>,
     },
     Tuple {
         dims: Vec<Value>,
@@ -92,6 +92,17 @@ impl Value {
     /*pub(crate) fn id(name: impl AsRef<str>) -> Self {
         Self::Id(Id::new(name))
     }*/
+    pub fn is_weak_head_normal_form(&self) -> bool {
+        matches!(
+            self,
+            Value::Int(_)
+                | Value::Str(_)
+                | Value::Lambda { .. }
+                | Value::Ctor { .. }
+                | Value::Builtin { .. }
+                | Value::Tuple { .. }
+        )
+    }
 }
 impl Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -114,10 +125,7 @@ impl Debug for Value {
             Value::Lambda { .. } => todo!(),
             Value::Id(id) => f.write_str(id.name()),
             Value::Match { .. } => todo!(),
-            Value::Callsite {
-                function,
-                arguments,
-            } => write!(f, "({:?} {:?})", function, arguments),
+            Value::Callsite { function, argument } => write!(f, "({:?} {:?})", function, argument),
             Value::Tuple { .. } => todo!(),
             Value::Thunk { .. } => todo!(),
             Value::Builtin(_) => todo!(),

@@ -13,18 +13,6 @@ pub enum Step {
     Continuation(Continuation),
 }
 
-pub fn is_weak_head_normal_form(value: &Value) -> bool {
-    matches!(
-        value,
-        Value::Int(_)
-            | Value::Str(_)
-            | Value::Lambda { .. }
-            | Value::Ctor { .. }
-            | Value::Builtin { .. }
-            | Value::Tuple { .. }
-    )
-}
-
 #[derive(Debug)]
 pub struct Continuation {
     pub message: String,
@@ -42,9 +30,9 @@ pub enum ContinuationChoice {
         env: Env,
         pattern_exprs: Vec<PatternExpr>,
     },
-    Callsite {
+    Application {
         env: Env,
-        arguments: Vec<Value>,
+        argument: Value,
     },
     Thunk {
         env: Env,
@@ -53,14 +41,14 @@ pub enum ContinuationChoice {
     },
 }
 
-impl Continuation {
-    pub fn walk(env: Env, message: String) -> Self {
-        Continuation {
-            message,
-            choice: ContinuationChoice::Walk { env },
-            next: None,
-        }
+pub fn walk(env: Env, message: String) -> Continuation {
+    Continuation {
+        message,
+        choice: ContinuationChoice::Walk { env },
+        next: None,
     }
+}
+impl Continuation {
     pub fn prepare(self, value: Value) -> Result<(Value, Self), RuntimeError> {
         match self.choice {
             ContinuationChoice::Done => {
@@ -76,17 +64,19 @@ impl Continuation {
                 // subject = value
                 todo!();
             }
-            ContinuationChoice::Callsite {
+            ContinuationChoice::Application {
                 env: _,
-                arguments: _,
+                argument: _,
             } => {
+                todo!();
+                /*
                 // function = value;
                 match &value {
                     Value::Ctor { name, dims } => {
                         // Apply the arguments to the function.
                         tracing::info!("applying {name:?} to {dims:?}");
                         Ok((
-                            value,
+                            //Value::Ctor{ name:
                             Continuation {
                                 message: "ctor is in whnf".to_string(),
                                 choice: ContinuationChoice::Done,
@@ -96,6 +86,7 @@ impl Continuation {
                     }
                     _ => todo!(),
                 }
+                */
             }
             ContinuationChoice::Thunk { env: _, expr: _ } => todo!(),
         }

@@ -228,10 +228,16 @@ fn callsite_parser(input: Span) -> IResult<Value> {
         if terms.len() == 1 {
             terms.remove(0)
         } else {
-            Value::Callsite {
-                function: Box::new(terms.remove(0)),
-                arguments: terms,
-            }
+            terms
+                .into_iter()
+                .fold(None, |acc: Option<Value>, term| match acc {
+                    None => Some(term),
+                    Some(callsite) => Some(Value::Callsite {
+                        function: Box::new(callsite),
+                        argument: Box::new(term),
+                    }),
+                })
+                .unwrap()
         }
     })
     .parse(input)
@@ -284,14 +290,14 @@ fn convert_do_notation(lines: &[DoLine]) -> Result<Value, PitaError> {
             body: Box::new(convert_do_notation(rest)?),
         },
         [DoLine::Bind(name, expr), rest @ ..] => Value::Callsite {
-            function: Box::new(Value::Id(internal_id(">>="))),
-            arguments: vec![
-                expr.clone(),
-                Value::Lambda {
-                    param_names: vec![name.clone()],
-                    body: Box::new(convert_do_notation(rest)?),
-                },
-            ],
+            function: Box::new(Value::Callsite {
+                function: Box::new(Value::Id(internal_id(">>="))),
+                argument: Box::new(expr.clone()),
+            }),
+            argument: Box::new(Value::Lambda {
+                param_names: vec![name.clone()],
+                body: Box::new(convert_do_notation(rest)?),
+            }),
         },
         [DoLine::Expr(_), ..] => return Err("Expression in middle of do block".into()),
     })
