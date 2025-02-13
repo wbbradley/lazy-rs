@@ -126,7 +126,15 @@ impl Debug for Value {
             Value::Id(id) => f.write_str(id.name()),
             Value::Match { .. } => todo!(),
             Value::Callsite { function, argument } => write!(f, "({:?} {:?})", function, argument),
-            Value::Tuple { .. } => todo!(),
+            Value::Tuple { dims } => {
+                f.write_str("(")?;
+                let mut delim = "";
+                for dim in dims {
+                    write!(f, "{delim}{:?}", dim)?;
+                    delim = " ";
+                }
+                f.write_str(")")
+            }
             Value::Thunk { .. } => todo!(),
             Value::Builtin(_) => todo!(),
             Value::Let { .. } => todo!(),

@@ -77,6 +77,18 @@ fn string_literal(input: Span) -> IResult<String> {
     .parse(input)
 }
 
+fn tuple_predicate_parser(input: Span) -> IResult<Predicate> {
+    map(
+        delimited(
+            ws(char('(')),
+            separated_list0(ws(char(',')), predicate_parser),
+            ws(char(')')),
+        ),
+        Predicate::Tuple,
+    )
+    .parse(input)
+}
+
 fn ctor_predicate_parser(input: Span) -> IResult<Predicate> {
     ws(map(
         pair(id_parser, many0(predicate_parser)),
@@ -93,6 +105,7 @@ fn predicate_parser(input: Span) -> IResult<Predicate> {
         }),
         // Parse positive number predicates.
         map_res(digit1, |s: Span| s.parse().map(Predicate::Int)),
+        tuple_predicate_parser,
         ctor_predicate_parser,
         map(id_parser, Predicate::Id),
     )))

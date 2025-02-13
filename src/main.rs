@@ -48,9 +48,12 @@ fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError
     let content = std::fs::read_to_string(filename)?;
     let filename = filename.display().to_string().leak();
     let file_span = crate::parser::Span::new_extra(&content, filename);
-    let decls = parser::program_parser(file_span)?;
+    let (remaining, decls) = parser::program_parser(file_span)?;
+    if remaining.len() != 0 {
+        return Err(error!("remaining input: {remaining:?}"));
+    }
     let mut env = Env::with_builtins();
-    for d in decls.1 {
+    for d in dbg!(decls) {
         tracing::info!("{:#?}", d);
         env.add_symbol_mut(d.name, d.body);
     }
@@ -96,7 +99,7 @@ fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
             },
             ContinuationChoice::Walk { ref env } => match expr {
                 Value::Id(id) => {
-                    let new_expr = env
+                    let new_expr = dbg!(env)
                         .get_symbol(&id)
                         .ok_or(RuntimeError::UnresolvedSymbol(id))?
                         .clone();
