@@ -53,7 +53,7 @@ pub enum Value {
     Str(String),
     Null,
     Lambda {
-        param_names: Vec<Id>,
+        param: Id,
         body: Box<Value>,
     },
     Id(Id),
@@ -136,7 +136,7 @@ impl Debug for Value {
                 f.write_str(")")
             }
             Value::Thunk { .. } => todo!(),
-            Value::Builtin(_) => "builtin".fmt(f),
+            Value::Builtin(_) => "<builtin>".fmt(f),
             Value::Let { .. } => todo!(),
             Value::Ctor { .. } => todo!(),
         }

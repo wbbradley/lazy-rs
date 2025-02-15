@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{id::Id, runtime::error::RuntimeError, value::Value};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct Env {
     bindings: rpds::RedBlackTreeMap<String, Value>,
 }
@@ -55,5 +55,11 @@ impl Env {
     {
         self.bindings
             .insert_mut(name.to_string(), Value::builtin(Rc::new(f)));
+    }
+}
+
+impl std::fmt::Debug for Env {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.bindings.iter()).finish()
     }
 }

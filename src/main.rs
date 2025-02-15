@@ -9,7 +9,6 @@ mod value;
 
 mod runtime {
     pub(crate) mod error;
-    pub(crate) mod exec;
 }
 
 use clap::Parser;
@@ -19,10 +18,7 @@ use crate::{
     env::Env,
     error::{error, PitaError},
     id::{value_from_id, IdImpl},
-    runtime::{
-        error::RuntimeError,
-        exec::{walk, Continuation, ContinuationChoice},
-    },
+    runtime::error::RuntimeError,
     value::Value,
 };
 
@@ -53,7 +49,7 @@ fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError
         return Err(error!("remaining input: {remaining:?}"));
     }
     let mut env = Env::with_builtins();
-    for d in dbg!(decls) {
+    for d in decls {
         tracing::info!("{:#?}", d);
         env.add_symbol_mut(d.name, d.body);
     }
@@ -66,78 +62,81 @@ fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError
             ],
         }),
     };
-    let result = walk_tree(env, entrypoint);
+    let result = eval_loop(env, entrypoint);
     match result {
         Ok(value) => Ok(value),
         Err(e) => Err(PitaError::from(e)),
     }
 }
 
-fn walk_tree(env: Env, mut expr: Value) -> Result<Value, RuntimeError> {
-    // Return a value in WHNF.
-    // State is maintained in the expr register and the continuation list.
-    let message = format!("Walk({expr:?})");
-    let mut continuation = walk(env, message);
+fn eval_loop(env: Env, expr: Value) -> Result<Value, RuntimeError> {
+    enum Continuation {
+        ApplyTo {
+            env: Env,
+            arg: Value,
+            next: Box<Continuation>,
+        },
+        Done,
+    }
+    enum State {
+        Walk { env: Env, expr: Value },
+        ContinueWith(Value),
+    }
+    let global_env = env.clone();
+    let mut state: State = State::Walk { env, expr };
+    let mut continuation = Continuation::Done;
 
     loop {
-        tracing::debug!("walk_tree loop on {continuation:?}");
-        continuation = match continuation.choice {
-            ContinuationChoice::Done => {
-                if let Some(next) = continuation.next {
-                    // Push this value on to the next continuation.
-                    let (new_expr, new_continuation) = (*next).prepare(expr)?;
-                    expr = new_expr;
-                    new_continuation
-                } else {
-                    break Ok(expr);
+        match state {
+            State::Walk { env, expr } => {
+                // The job of Walk is to ensure that the expression is in WHNF.
+                if expr.is_weak_head_normal_form() {
+                    state = State::ContinueWith(expr);
+                    continue;
+                }
+                match expr {
+                    Value::Id(id) => {
+                        state = State::Walk {
+                            env,
+                            expr: env
+                                .get_symbol(&id)
+                                .ok_or(RuntimeError::UnresolvedSymbol(id))?
+                                .clone(),
+                        };
+                    }
+                    Value::Callsite { function, argument } => {
+                        // Evaluate the callee, then apply the arguments to it.
+                        state = State::Walk {
+                            env,
+                            expr: *function,
+                        };
+                        // Chain the continuation.
+                        continuation = Continuation::ApplyTo {
+                            env: global_env.clone(),
+                            arg: *argument,
+                            next: Box::new(continuation),
+                        };
+                    }
+                    _ => todo!("handle {expr:?} in Walk"),
                 }
             }
-            ContinuationChoice::Walk { .. } if expr.is_weak_head_normal_form() => Continuation {
-                message: "from a Walk".to_string(),
-                choice: ContinuationChoice::Done,
-                next: continuation.next,
-            },
-            ContinuationChoice::Walk { ref env } => match expr {
-                Value::Id(id) => {
-                    let new_expr = dbg!(env)
-                        .get_symbol(&id)
-                        .ok_or(RuntimeError::UnresolvedSymbol(id))?
-                        .clone();
-                    expr = new_expr;
-                    continue;
+            State::ContinueWith(expr) => {
+                match continuation {
+                    Continuation::ApplyTo { env, arg, next } => {
+                        tracing::info!("applying {expr:?} to {arg:?}");
+                        let Value::Lambda { param, body } = expr else {
+                            panic!("expected lambda, got {expr:?}");
+                        };
+                        // Apply the arguments to the function.
+                        env.add_symbol(param, arg);
+                        state = State::Walk { env, expr: *body };
+                        continuation = *next;
+                    }
+                    Continuation::Done => {
+                        return Ok(expr);
+                    }
                 }
-                Value::Callsite { function, argument } => {
-                    // Evaluate the callee, then apply the arguments to it.
-                    expr = *function;
-                    // Chain the continuation.
-                    continuation.next = Some(Box::new(Continuation {
-                        message: "callsite walk".to_string(),
-                        choice: ContinuationChoice::Application {
-                            env: env.clone(),
-                            argument: *argument,
-                        },
-                        next: continuation.next,
-                    }));
-                    // Re-use the existing continuation for perf.
-                    continue;
-                }
-                Value::Match {
-                    subject: _,
-                    pattern_exprs: _,
-                } => todo!(),
-                Value::Tuple { dims: _ } => todo!(),
-                Value::Thunk { env: _, expr: _ } => todo!(),
-                Value::Builtin(_f) => todo!(),
-                Value::Let {
-                    name: _,
-                    value: _,
-                    body: _,
-                } => todo!(),
-                _ => todo!("handle {expr:?} in Walk"),
-            },
-            ContinuationChoice::Match { .. } => todo!(),
-            ContinuationChoice::Application { .. } => todo!(),
-            ContinuationChoice::Thunk { .. } => todo!(),
+            }
         }
     }
 }
