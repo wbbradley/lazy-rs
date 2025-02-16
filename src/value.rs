@@ -133,9 +133,14 @@ impl Debug for Value {
                 f.write_str("\"")
             }
             Value::Null => todo!(),
-            Value::Lambda { .. } => todo!(),
+            Value::Lambda { param, body } => write!(f, "λ{param}.{body:?}"),
             Value::Id(id) => f.write_str(id.name()),
-            Value::Match { .. } => todo!(),
+            Value::Match {
+                subject,
+                pattern_exprs,
+            } => {
+                write!(f, "match {subject:?} {{ {pattern_exprs:?} }}",)
+            }
             Value::Callsite { function, argument } => write!(f, "({:?} {:?})", function, argument),
             Value::Tuple { dims } => {
                 f.write_str("(")?;

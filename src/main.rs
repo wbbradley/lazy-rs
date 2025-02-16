@@ -177,6 +177,7 @@ fn run_program(filename: impl AsRef<std::path::Path>) -> Result<Value, PitaError
 }
 
 fn eval_loop(env: Env, expr: Value) -> Result<Value, RuntimeError> {
+    tracing::info!(?expr, ?env, "evaluating expression");
     enum Continuation {
         ApplyTo {
             env: Env,
