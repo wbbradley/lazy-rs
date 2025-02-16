@@ -1,20 +1,31 @@
 #![allow(dead_code)]
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use crate::{env::Env, id::Id, token::Token};
+use crate::{env::Env, id::Id, location::Location, token::Token};
 
 #[derive(Debug, Clone)]
 pub enum Predicate {
-    Id(Id),
-    Int(i64),
+    Irrefutable(Id),
+    Int(i64, Location),
     Tuple(Vec<Predicate>),
     Ctor(Id, Vec<Predicate>),
+}
+
+impl Predicate {
+    pub fn location(&self) -> Location {
+        match self {
+            Predicate::Irrefutable(id) => id.location(),
+            Predicate::Int(_, loc) => *loc,
+            Predicate::Tuple(predicates) => predicates[0].location(),
+            Predicate::Ctor(_, predicates) => predicates[0].location(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Decl {
     pub name: Id,
-    pub pattern: Vec<Predicate>,
+    pub patterns: Vec<Predicate>,
     pub body: Value,
 }
 
@@ -69,7 +80,7 @@ pub enum Value {
         dims: Vec<Value>,
     },
     Thunk {
-        env: Env,
+        env: Option<Env>,
         // Envs that share the same thunks will share the memoized value.
         expr: Rc<RefCell<Value>>,
     },

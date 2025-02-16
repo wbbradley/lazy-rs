@@ -13,8 +13,22 @@ pub fn parse_id<E: IdErrorTrait>(token: Token) -> Result<Id, crate::error::PitaE
     }
 }
 
-pub fn value_from_id<C: IdErrorTrait>(name: &str) -> Value {
-    Value::Id(internal_id(name))
+pub fn value_from_id<C: IdErrorTrait>(id: &Id) -> Value {
+    Value::Id(id.clone())
+}
+
+pub fn gensym(location: Location) -> Id {
+    static mut COUNTER: u64 = 0;
+    Id {
+        token: Token {
+            text: format!("__{}", unsafe {
+                let c = COUNTER;
+                COUNTER += 1;
+                c
+            }),
+            location,
+        },
+    }
 }
 
 pub fn internal_id(name: &str) -> Id {
@@ -29,11 +43,7 @@ pub fn internal_id_impl<E: IdErrorTrait>(name: &str) -> Id {
     debug_assert!(E::is_valid(name));
     parse_id::<E>(Token {
         text: name.to_string(),
-        location: Location {
-            filename: "<runtime>",
-            line: 0,
-            col: 0,
-        },
+        location: Location::unknown(),
     })
     .unwrap()
 }
@@ -120,5 +130,8 @@ impl<C: IdErrorTrait + std::fmt::Debug> std::error::Error for IdError<C> {}
 impl Id {
     pub fn name(&self) -> &str {
         &self.token.text
+    }
+    pub fn location(&self) -> Location {
+        self.token.location
     }
 }

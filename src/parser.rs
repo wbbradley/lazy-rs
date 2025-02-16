@@ -101,13 +101,17 @@ fn predicate_parser(input: Span) -> IResult<Predicate> {
     ws(alt((
         // Parse negative number predicates.
         map_res((tag("-"), ws(digit1)), |(_, digits)| {
-            digits.parse().map(|x: i64| Predicate::Int(-x))
+            digits
+                .parse()
+                .map(|x: i64| Predicate::Int(-x, (&input).into()))
         }),
         // Parse positive number predicates.
-        map_res(digit1, |s: Span| s.parse().map(Predicate::Int)),
+        map_res(digit1, |s: Span| {
+            s.parse().map(|x| Predicate::Int(x, (&s).into()))
+        }),
         tuple_predicate_parser,
         ctor_predicate_parser,
-        map(id_parser, Predicate::Id),
+        map(id_parser, Predicate::Irrefutable),
     )))
     .parse(input)
 }
@@ -186,9 +190,9 @@ fn do_parser(input: Span) -> IResult<Value> {
 
 fn lambda_parser(input: Span) -> IResult<Value> {
     map(
-        (many1(id_parser), ws(tag("->")), expr_parser),
-        |(params, _, body)| Value::Lambda {
-            param_names: params,
+        (id_parser, ws(tag("->")), expr_parser),
+        |(param, _, body)| Value::Lambda {
+            param,
             body: Box::new(body),
         },
     )
@@ -279,9 +283,9 @@ fn decl_parser(input: Span) -> IResult<Decl> {
             expr_parser,
             ws(char(';')),
         ),
-        |(name, pattern, _, body, _)| Decl {
+        |(name, patterns, _, body, _)| Decl {
             name,
-            pattern,
+            patterns,
             body,
         },
     )
@@ -308,7 +312,7 @@ fn convert_do_notation(lines: &[DoLine]) -> Result<Value, PitaError> {
                 argument: Box::new(expr.clone()),
             }),
             argument: Box::new(Value::Lambda {
-                param_names: vec![name.clone()],
+                param: name.clone(),
                 body: Box::new(convert_do_notation(rest)?),
             }),
         },
