@@ -223,7 +223,7 @@ fn eval_loop(env: Env, expr: Value) -> Result<Value, RuntimeError> {
                             next: Box::new(continuation),
                         };
                     }
-                    _ => todo!("handle {expr:?} in Walk"),
+                    _ => todo!("handle {expr:?} in Walk {env:?}"),
                 }
             }
             State::ContinueWith(expr) => {
